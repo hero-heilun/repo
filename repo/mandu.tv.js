@@ -294,7 +294,7 @@ export default class extends Extension {
             title: "播放",
             urls: [{
               name: "播放链接",
-              url: "/md0362-淫僧释永信禅房偷拍实录-少林肉棒替女信徒消灾.html",
+              url: "https://httpbin.org/html", // Test URL for debugging
             }]
           }],
         };
@@ -820,8 +820,8 @@ export default class extends Extension {
         console.log("=== WATCH METHOD EMPTY URL DETECTED ===");
         console.log("Watch method received empty URL, attempting to construct from detail fallback");
         
-        // Use the same URL that our detail method provides as fallback
-        const reconstructedUrl = "https://madou.club/md0362-淫僧释永信禅房偷拍实录-少林肉棒替女信徒消灾.html";
+        // Use a test URL that we know works, for debugging
+        const reconstructedUrl = "https://httpbin.org/html"; // Test URL for debugging network issues
         console.log("Reconstructed URL:", reconstructedUrl);
         
         // Now try to process this URL using our madou.club logic
