@@ -130,7 +130,11 @@ export default class extends Extension {
         if (title && url) {
           console.log("Found video:", title);
           console.log("Original URL:", url);
-          const cleanUrl = url.replace("https://madou.club", "");
+          // Ensure URL starts with / for proper relative path
+          let cleanUrl = url.replace("https://madou.club", "");
+          if (!cleanUrl.startsWith('/')) {
+            cleanUrl = '/' + cleanUrl;
+          }
           console.log("Clean URL:", cleanUrl);
           videos.push({
             title,
@@ -200,7 +204,11 @@ export default class extends Extension {
             if (title && url) {
               console.log("Fallback - Found video:", title);
               console.log("Fallback - Original URL:", url);
-              const cleanUrl = url.replace("https://madou.club", "");
+              // Ensure URL starts with / for proper relative path
+              let cleanUrl = url.replace("https://madou.club", "");
+              if (!cleanUrl.startsWith('/')) {
+                cleanUrl = '/' + cleanUrl;
+              }
               console.log("Fallback - Clean URL:", cleanUrl);
               videos.push({
                 title,
