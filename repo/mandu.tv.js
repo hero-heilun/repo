@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         麻豆传媒
-// @version      v0.0.1
+// @version      v0.0.1.1
 // @author       jason
 // @lang         zh-cn
 // @license      MIT
