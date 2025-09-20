@@ -326,20 +326,39 @@ export default class extends Extension {
       
       // If no URLs found, add placeholder to original page
       if (urls.length === 0) {
-        console.log("No video URLs found, adding placeholder");
-        urls.push({
-          name: "原网页观看",
-          url: `https://madou.club${url}`,
-        });
+        console.log("No video URLs found, trying to add placeholder");
+        if (url && url.trim() !== "") {
+          urls.push({
+            name: "原网页观看",
+            url: `https://madou.club${url}`,
+          });
+        } else {
+          console.error("Cannot create placeholder URL - detail URL is empty");
+          throw new Error("未找到可播放的视频源");
+        }
       }
       
-      console.log("Extracted URLs:", urls.length);
+      // Validate all URLs before returning
+      const validUrls = urls.filter(urlObj => {
+        if (!urlObj.url || urlObj.url.trim() === "") {
+          console.warn("Filtering out empty URL:", urlObj.name);
+          return false;
+        }
+        return true;
+      });
+      
+      if (validUrls.length === 0) {
+        console.error("No valid URLs found after filtering");
+        throw new Error("未找到有效的视频播放链接");
+      }
+      
+      console.log("Valid URLs:", validUrls.length);
       
       return {
         title: title || "未知标题",
         cover,
         desc,
-        episodes: [{ title: "播放", urls }],
+        episodes: [{ title: "播放", urls: validUrls }],
       };
     } catch (error) {
       console.error("Failed to get detail:", error);
@@ -441,16 +460,32 @@ export default class extends Extension {
         }
       }
       
-      // If it's a madou.club URL, return as web player
+      // If it's a madou.club URL, try to extract video from the page
       if (url.includes("madou.club")) {
-        return { 
-          type: "web", 
-          url,
-          headers: {
-            "Referer": "https://madou.club/",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        try {
+          const res = await this.request(url.replace("https://madou.club", ""), {
+            headers: {
+              "Miru-Url": "https://madou.club",
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+          });
+          
+          // Look for iframe in the page
+          const iframeMatch = res.match(/<iframe[^>]*src="([^"]+)"/);
+          if (iframeMatch && !iframeMatch[1].includes('about:blank')) {
+            console.log("Found iframe in madou.club page:", iframeMatch[1]);
+            // Recursively call watch with iframe URL
+            return await this.watch(iframeMatch[1]);
           }
-        };
+        } catch (error) {
+          console.error("Failed to extract from madou.club page:", error);
+        }
+      }
+      
+      // Check if URL is empty or invalid
+      if (!url || url.trim() === "") {
+        console.error("Empty or invalid URL provided");
+        throw new Error("无效的播放链接");
       }
       
       console.log("Fallback - returning original URL:", url);
@@ -464,6 +499,12 @@ export default class extends Extension {
       };
     } catch (error) {
       console.error("Failed to get watch URL:", error);
+      
+      // Don't return empty URLs even in error cases
+      if (!url || url.trim() === "") {
+        throw error;
+      }
+      
       return { 
         type: "hls", 
         url,
