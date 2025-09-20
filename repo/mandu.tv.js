@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         麻豆传媒
-// @version      v0.0.1.1
+// @version      v0.0.1.2
 // @author       jason
 // @lang         zh-cn
 // @license      MIT
@@ -401,29 +401,56 @@ export default class extends Extension {
           let token = null;
           let m3u8Path = null;
 
-          for (let i = 0; i < scriptMatches.length; i++) {
-            const scriptContent = scriptMatches[i][1];
-            const preview = scriptContent.substring(0, 200).replace(/\s+/g, ' ');
-            console.log(`Checking script ${i + 1}:`, preview + "...");
+          // First try the 6th script tag (index 5) as per madou.js reference
+          if (scriptMatches.length > 5) {
+            const scriptContent = scriptMatches[5][1];
+            console.log("Checking 6th script tag (index 5) as per madou.js pattern");
+            
+            // Use exact patterns from madou.js
+            const tokenMatch = scriptContent.match(/var token = "(.+?)";/);
+            const m3u8Match = scriptContent.match(/var m3u8 = '(.+?)';/);
 
-            // Look for token and m3u8 patterns like in madou.js
-            const tokenMatch = scriptContent.match(/var token = "(.+?)";/) ||
-                              scriptContent.match(/token["']?\s*[:=]\s*["']([^"']+)["']/);
-            const m3u8Match = scriptContent.match(/var m3u8 = '(.+?)';/) ||
-                             scriptContent.match(/m3u8["']?\s*[:=]\s*["']([^"']+)["']/);
-
-            if (tokenMatch) {
+            if (tokenMatch && m3u8Match) {
               token = tokenMatch[1];
-              console.log("Found token:", token.substring(0, 20) + "...");
-            }
-            if (m3u8Match) {
               m3u8Path = m3u8Match[1];
-              console.log("Found m3u8 path:", m3u8Path);
+              console.log("Found token in 6th script:", token.substring(0, 20) + "...");
+              console.log("Found m3u8 path in 6th script:", m3u8Path);
             }
+          }
 
-            if (token && m3u8Path) {
-              console.log("Both token and m3u8 found, breaking");
-              break;
+          // If not found in 6th script, search all scripts
+          if (!token || !m3u8Path) {
+            console.log("Not found in 6th script, searching all scripts");
+            for (let i = 0; i < scriptMatches.length; i++) {
+              const scriptContent = scriptMatches[i][1];
+              const preview = scriptContent.substring(0, 200).replace(/\s+/g, ' ');
+              console.log(`Checking script ${i + 1}:`, preview + "...");
+
+              // Use exact patterns from madou.js first, then fallbacks
+              let tokenMatch = scriptContent.match(/var token = "(.+?)";/);
+              let m3u8Match = scriptContent.match(/var m3u8 = '(.+?)';/);
+
+              // Fallback patterns
+              if (!tokenMatch) {
+                tokenMatch = scriptContent.match(/token["']?\s*[:=]\s*["']([^"']+)["']/);
+              }
+              if (!m3u8Match) {
+                m3u8Match = scriptContent.match(/m3u8["']?\s*[:=]\s*["']([^"']+)["']/);
+              }
+
+              if (tokenMatch) {
+                token = tokenMatch[1];
+                console.log("Found token:", token.substring(0, 20) + "...");
+              }
+              if (m3u8Match) {
+                m3u8Path = m3u8Match[1];
+                console.log("Found m3u8 path:", m3u8Path);
+              }
+
+              if (token && m3u8Path) {
+                console.log("Both token and m3u8 found, breaking");
+                break;
+              }
             }
           }
 
@@ -676,18 +703,70 @@ export default class extends Extension {
             const domain = domainMatch ? domainMatch[1] : "";
             console.log("Iframe domain:", domain);
 
-            // Look for token and m3u8 in iframe response
-            const tokenMatch = iframeRes.match(/token\s*=\s*["']([^"']+)["']/);
-            const m3u8Match = iframeRes.match(/["']([^"']*\.m3u8[^"']*)["']/);
+            // Look for token and m3u8 in iframe response using script tags
+            const scriptMatches = [...iframeRes.matchAll(/<script[^>]*>(.*?)<\/script>/gs)];
+            console.log(`Found ${scriptMatches.length} script tags in iframe`);
 
-            if (tokenMatch && m3u8Match && domain) {
-              const token = tokenMatch[1];
-              const m3u8Path = m3u8Match[1];
+            let token = null;
+            let m3u8Path = null;
+
+            // First try the 6th script tag (index 5) as per madou.js reference
+            if (scriptMatches.length > 5) {
+              const scriptContent = scriptMatches[5][1];
+              console.log("Checking 6th script tag (index 5) for watch method");
+              
+              // Use exact patterns from madou.js
+              const tokenMatch = scriptContent.match(/var token = "(.+?)";/);
+              const m3u8Match = scriptContent.match(/var m3u8 = '(.+?)';/);
+
+              if (tokenMatch && m3u8Match) {
+                token = tokenMatch[1];
+                m3u8Path = m3u8Match[1];
+                console.log("Found token in 6th script (watch):", token.substring(0, 20) + "...");
+                console.log("Found m3u8 path in 6th script (watch):", m3u8Path);
+              }
+            }
+
+            // If not found in 6th script, search all scripts
+            if (!token || !m3u8Path) {
+              console.log("Not found in 6th script, searching all scripts (watch)");
+              for (let i = 0; i < scriptMatches.length; i++) {
+                const scriptContent = scriptMatches[i][1];
+                
+                // Use exact patterns from madou.js first, then fallbacks
+                let tokenMatch = scriptContent.match(/var token = "(.+?)";/);
+                let m3u8Match = scriptContent.match(/var m3u8 = '(.+?)';/);
+
+                // Fallback patterns
+                if (!tokenMatch) {
+                  tokenMatch = scriptContent.match(/token\s*=\s*["']([^"']+)["']/);
+                }
+                if (!m3u8Match) {
+                  m3u8Match = scriptContent.match(/["']([^"']*\.m3u8[^"']*)["']/);
+                }
+
+                if (tokenMatch) {
+                  token = tokenMatch[1];
+                  console.log("Found token (watch):", token.substring(0, 20) + "...");
+                }
+                if (m3u8Match) {
+                  m3u8Path = m3u8Match[1];
+                  console.log("Found m3u8 path (watch):", m3u8Path);
+                }
+
+                if (token && m3u8Path) {
+                  console.log("Both token and m3u8 found in watch method");
+                  break;
+                }
+              }
+            }
+
+            if (token && m3u8Path && domain) {
               const playUrl = `${domain}${m3u8Path}?token=${token}`;
 
-              console.log("Extracted token:", token.substring(0, 20) + "...");
-              console.log("Extracted m3u8 path:", m3u8Path);
-              console.log("Final video URL:", playUrl);
+              console.log("Extracted token (watch):", token.substring(0, 20) + "...");
+              console.log("Extracted m3u8 path (watch):", m3u8Path);
+              console.log("Final video URL (watch):", playUrl);
 
               return {
                 type: "hls",
@@ -724,29 +803,56 @@ export default class extends Extension {
 
           // Find all script tags and look for the one with token and m3u8
           const scriptMatches = [...res.matchAll(/<script[^>]*>(.*?)<\/script>/gs)];
-          console.log(`Found ${scriptMatches.length} script tags in watch`);
+          console.log(`Found ${scriptMatches.length} script tags in watch iframe`);
 
           let token = null;
           let m3u8Path = null;
 
-          for (let i = 0; i < scriptMatches.length; i++) {
-            const scriptContent = scriptMatches[i][1];
+          // First try the 6th script tag (index 5) as per madou.js reference
+          if (scriptMatches.length > 5) {
+            const scriptContent = scriptMatches[5][1];
+            console.log("Checking 6th script tag (index 5) for iframe watch");
+            
+            // Use exact patterns from madou.js
+            const tokenMatch = scriptContent.match(/var token = "(.+?)";/);
+            const m3u8Match = scriptContent.match(/var m3u8 = '(.+?)';/);
 
-            // Look for token and m3u8 patterns like in madou.js
-            const tokenMatch = scriptContent.match(/var token = "(.+?)";/) ||
-                              scriptContent.match(/token["']?\s*[:=]\s*["']([^"']+)["']/);
-            const m3u8Match = scriptContent.match(/var m3u8 = '(.+?)';/) ||
-                             scriptContent.match(/m3u8["']?\s*[:=]\s*["']([^"']+)["']/);
-
-            if (tokenMatch) {
+            if (tokenMatch && m3u8Match) {
               token = tokenMatch[1];
-            }
-            if (m3u8Match) {
               m3u8Path = m3u8Match[1];
+              console.log("Found token in 6th script (iframe watch):", token.substring(0, 20) + "...");
+              console.log("Found m3u8 path in 6th script (iframe watch):", m3u8Path);
             }
+          }
 
-            if (token && m3u8Path) {
-              break;
+          // If not found in 6th script, search all scripts
+          if (!token || !m3u8Path) {
+            console.log("Not found in 6th script, searching all scripts (iframe watch)");
+            for (let i = 0; i < scriptMatches.length; i++) {
+              const scriptContent = scriptMatches[i][1];
+
+              // Use exact patterns from madou.js first, then fallbacks
+              let tokenMatch = scriptContent.match(/var token = "(.+?)";/);
+              let m3u8Match = scriptContent.match(/var m3u8 = '(.+?)';/);
+
+              // Fallback patterns
+              if (!tokenMatch) {
+                tokenMatch = scriptContent.match(/token["']?\s*[:=]\s*["']([^"']+)["']/);
+              }
+              if (!m3u8Match) {
+                m3u8Match = scriptContent.match(/m3u8["']?\s*[:=]\s*["']([^"']+)["']/);
+              }
+
+              if (tokenMatch) {
+                token = tokenMatch[1];
+              }
+              if (m3u8Match) {
+                m3u8Path = m3u8Match[1];
+              }
+
+              if (token && m3u8Path) {
+                break;
+              }
             }
           }
 
@@ -913,13 +1019,62 @@ export default class extends Extension {
             const domain = domainMatch ? domainMatch[1] : "";
             console.log("Reconstructed iframe domain:", domain);
 
-            // Look for token and m3u8 in iframe response
-            const tokenMatch = iframeRes.match(/token\s*=\s*["']([^"']+)["']/);
-            const m3u8Match = iframeRes.match(/["']([^"']*\.m3u8[^"']*)["']/);
+            // Look for token and m3u8 in iframe response using script tags
+            const scriptMatches = [...iframeRes.matchAll(/<script[^>]*>(.*?)<\/script>/gs)];
+            console.log(`Found ${scriptMatches.length} script tags in reconstructed iframe`);
 
-            if (tokenMatch && m3u8Match && domain) {
-              const token = tokenMatch[1];
-              const m3u8Path = m3u8Match[1];
+            let token = null;
+            let m3u8Path = null;
+
+            // First try the 6th script tag (index 5) as per madou.js reference
+            if (scriptMatches.length > 5) {
+              const scriptContent = scriptMatches[5][1];
+              console.log("Checking 6th script tag (index 5) for reconstructed iframe");
+              
+              // Use exact patterns from madou.js
+              const tokenMatch = scriptContent.match(/var token = "(.+?)";/);
+              const m3u8Match = scriptContent.match(/var m3u8 = '(.+?)';/);
+
+              if (tokenMatch && m3u8Match) {
+                token = tokenMatch[1];
+                m3u8Path = m3u8Match[1];
+                console.log("Found token in 6th script (reconstructed):", token.substring(0, 20) + "...");
+                console.log("Found m3u8 path in 6th script (reconstructed):", m3u8Path);
+              }
+            }
+
+            // If not found in 6th script, search all scripts
+            if (!token || !m3u8Path) {
+              console.log("Not found in 6th script, searching all scripts (reconstructed)");
+              for (let i = 0; i < scriptMatches.length; i++) {
+                const scriptContent = scriptMatches[i][1];
+                
+                // Use exact patterns from madou.js first, then fallbacks
+                let tokenMatch = scriptContent.match(/var token = "(.+?)";/);
+                let m3u8Match = scriptContent.match(/var m3u8 = '(.+?)';/);
+
+                // Fallback patterns
+                if (!tokenMatch) {
+                  tokenMatch = scriptContent.match(/token\s*=\s*["']([^"']+)["']/);
+                }
+                if (!m3u8Match) {
+                  m3u8Match = scriptContent.match(/["']([^"']*\.m3u8[^"']*)["']/);
+                }
+
+                if (tokenMatch) {
+                  token = tokenMatch[1];
+                }
+                if (m3u8Match) {
+                  m3u8Path = m3u8Match[1];
+                }
+
+                if (token && m3u8Path) {
+                  break;
+                }
+              }
+            }
+
+            if (token && m3u8Path && domain) {
               const playUrl = `${domain}${m3u8Path}?token=${token}`;
 
               console.log("Reconstructed token:", token.substring(0, 20) + "...");
