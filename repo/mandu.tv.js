@@ -206,6 +206,13 @@ export default class extends Extension {
   async detail(url) {
     try {
       console.log("Detail URL:", url);
+      
+      // Validate URL first
+      if (!url || url.trim() === "") {
+        console.error("Empty detail URL provided");
+        throw new Error("详情页链接为空");
+      }
+      
       const res = await this.request(url, {
         headers: { 
           "Miru-Url": "https://madou.club",
@@ -214,6 +221,12 @@ export default class extends Extension {
       });
       
       console.log("Detail response length:", res.length);
+      
+      // Check if we got valid response
+      if (!res || res.length === 0) {
+        console.error("Empty response from detail page");
+        throw new Error("无法获取详情页内容");
+      }
       
       // Extract title from h1.entry-title
       let title = "";
@@ -252,7 +265,29 @@ export default class extends Extension {
       
       // Extract iframe source - based on madou.js getTracks implementation
       const urls = [];
-      const iframeMatch = res.match(/<div[^>]*class="[^"]*article-content[^"]*"[^>]*>.*?<iframe[^>]*src="([^"]+)"/s);
+      
+      // Try multiple iframe patterns
+      let iframeMatch = res.match(/<div[^>]*class="[^"]*article-content[^"]*"[^>]*>.*?<iframe[^>]*src="([^"]+)"/s);
+      
+      if (!iframeMatch) {
+        // Try alternative patterns
+        iframeMatch = res.match(/<iframe[^>]*src="([^"]+)"/);
+        console.log("Trying alternative iframe pattern");
+      }
+      
+      // Debug: check for any iframes at all
+      const allIframes = [...res.matchAll(/<iframe[^>]*src="([^"]+)"/g)];
+      console.log("Total iframes found:", allIframes.length);
+      allIframes.forEach((match, index) => {
+        console.log(`Iframe ${index + 1}:`, match[1]);
+      });
+      
+      console.log("Looking for iframe in article-content");
+      console.log("Iframe match found:", !!iframeMatch);
+      
+      if (iframeMatch) {
+        console.log("Raw iframe URL:", iframeMatch[1]);
+      }
       
       if (iframeMatch && !iframeMatch[1].includes('about:blank') && !iframeMatch[1].includes('googleads')) {
         console.log("Found iframe source:", iframeMatch[1]);
@@ -281,7 +316,8 @@ export default class extends Extension {
           
           for (let i = 0; i < scriptMatches.length; i++) {
             const scriptContent = scriptMatches[i][1];
-            console.log(`Checking script ${i + 1}:`, scriptContent.substring(0, 100) + "...");
+            const preview = scriptContent.substring(0, 200).replace(/\s+/g, ' ');
+            console.log(`Checking script ${i + 1}:`, preview + "...");
             
             // Look for token and m3u8 patterns like in madou.js
             const tokenMatch = scriptContent.match(/var token = "(.+?)";/) || 
@@ -291,7 +327,7 @@ export default class extends Extension {
             
             if (tokenMatch) {
               token = tokenMatch[1];
-              console.log("Found token:", token);
+              console.log("Found token:", token.substring(0, 20) + "...");
             }
             if (m3u8Match) {
               m3u8Path = m3u8Match[1];
@@ -299,8 +335,18 @@ export default class extends Extension {
             }
             
             if (token && m3u8Path) {
+              console.log("Both token and m3u8 found, breaking");
               break;
             }
+          }
+          
+          // If we still don't have both, try the original iframe URL
+          if (!token || !m3u8Path) {
+            console.log("Token or m3u8 not found in scripts, adding iframe URL as fallback");
+            urls.push({
+              name: "播放",
+              url: iframeMatch[1],
+            });
           }
           
           if (token && m3u8Path && domain) {
@@ -396,6 +442,12 @@ export default class extends Extension {
   async watch(url) {
     try {
       console.log("Watch URL:", url);
+      
+      // Validate URL first
+      if (!url || url.trim() === "") {
+        console.error("Empty watch URL provided");
+        throw new Error("播放链接为空");
+      }
       
       // If it's already a direct video URL with token
       if (url.includes(".m3u8") && url.includes("token=")) {
