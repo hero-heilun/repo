@@ -246,10 +246,26 @@ export default class extends Extension {
       console.log("Detail URL:", url);
       console.log("Detail URL type:", typeof url);
       console.log("Detail URL length:", url ? url.length : 0);
+      
+      // Handle URL encoding issues - the app may pass encoded URLs
+      let cleanUrl = url;
+      if (url && typeof url === 'string') {
+        // Try to decode URL if it's encoded
+        try {
+          if (url.includes('%')) {
+            cleanUrl = decodeURIComponent(url);
+            console.log("Decoded URL:", cleanUrl);
+          }
+        } catch (e) {
+          console.log("URL decode failed, using original:", e);
+        }
+      }
+      
+      console.log("Final URL to use:", cleanUrl);
       console.log("=== URL DEBUG INFO ===");
       
       // Validate URL first
-      if (!url || url.trim() === "") {
+      if (!cleanUrl || cleanUrl.trim() === "") {
         console.error("Empty detail URL provided");
         console.error("This is an app integration issue - URL parameter not passed correctly");
         console.error("Expected URL like: /md0362-xxx.html");
@@ -270,7 +286,7 @@ export default class extends Extension {
         };
       }
       
-      const res = await this.request(url, {
+      const res = await this.request(cleanUrl, {
         headers: { 
           "Miru-Url": "https://madou.club",
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -500,18 +516,33 @@ export default class extends Extension {
     try {
       console.log("Watch URL:", url);
       
+      // Handle URL encoding issues
+      let cleanUrl = url;
+      if (url && typeof url === 'string') {
+        try {
+          if (url.includes('%')) {
+            cleanUrl = decodeURIComponent(url);
+            console.log("Decoded watch URL:", cleanUrl);
+          }
+        } catch (e) {
+          console.log("Watch URL decode failed, using original:", e);
+        }
+      }
+      
+      console.log("Final watch URL to use:", cleanUrl);
+      
       // Validate URL first
-      if (!url || url.trim() === "") {
+      if (!cleanUrl || cleanUrl.trim() === "") {
         console.error("Empty watch URL provided");
         throw new Error("播放链接为空");
       }
       
       // If it's already a direct video URL with token
-      if (url.includes(".m3u8") && url.includes("token=")) {
+      if (cleanUrl.includes(".m3u8") && cleanUrl.includes("token=")) {
         console.log("Direct m3u8 URL with token");
         return { 
           type: "hls", 
-          url,
+          url: cleanUrl,
           headers: {
             "Referer": "https://madou.club/",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -520,10 +551,10 @@ export default class extends Extension {
       }
       
       // If it's already a direct video URL
-      if (url.includes(".mp4") || url.includes(".m3u8") || url.includes(".flv")) {
+      if (cleanUrl.includes(".mp4") || cleanUrl.includes(".m3u8") || cleanUrl.includes(".flv")) {
         return { 
-          type: url.includes(".m3u8") ? "hls" : "mp4", 
-          url,
+          type: cleanUrl.includes(".m3u8") ? "hls" : "mp4", 
+          url: cleanUrl,
           headers: {
             "Referer": "https://madou.club/",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -532,9 +563,9 @@ export default class extends Extension {
       }
       
       // Handle iframe or embed URLs - this should match URLs from detail()
-      if (url.includes("iframe") || url.includes("embed") || url.includes("player") || url.includes("dash")) {
+      if (cleanUrl.includes("iframe") || cleanUrl.includes("embed") || cleanUrl.includes("player") || cleanUrl.includes("dash")) {
         try {
-          const res = await this.request(url, {
+          const res = await this.request(cleanUrl, {
             headers: {
               "Referer": "https://madou.club/",
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -544,7 +575,7 @@ export default class extends Extension {
           console.log("Iframe response length:", res.length);
           
           // Extract domain from URL - exactly like madou.js
-          const domainMatch = url.match(/^(https?:\/\/[^\/]+)/);
+          const domainMatch = cleanUrl.match(/^(https?:\/\/[^\/]+)/);
           const domain = domainMatch ? domainMatch[1] : "";
           
           // Find all script tags and look for the one with token and m3u8
@@ -644,15 +675,15 @@ export default class extends Extension {
       }
       
       // Check if URL is empty or invalid
-      if (!url || url.trim() === "") {
+      if (!cleanUrl || cleanUrl.trim() === "") {
         console.error("Empty or invalid URL provided");
         throw new Error("无效的播放链接");
       }
       
-      console.log("Fallback - returning original URL:", url);
+      console.log("Fallback - returning original URL:", cleanUrl);
       return { 
         type: "hls", 
-        url,
+        url: cleanUrl,
         headers: {
           "Referer": "https://madou.club/",
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
