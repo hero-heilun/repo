@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         麻豆传媒
-// @version      v0.0.1.9
+// @version      v0.0.2.0
 // @author       jason
 // @lang         zh-cn
 // @license      MIT
@@ -365,38 +365,38 @@ export default class extends Extension {
       // Try multiple iframe patterns with both single and double quotes
       let iframeMatch = null;
       
-      // Pattern 1: Inside article-content with double quotes
-      iframeMatch = res.match(/<div[^>]*class="[^"]*article-content[^"]*"[^>]*>.*?<iframe[^>]*src="([^"]+)"/s);
-      console.log("Pattern 1 (article-content + double quotes):", !!iframeMatch);
+      // Pattern 1: iframe src without quotes (like madou.club uses)
+      iframeMatch = res.match(/<iframe[^>]*src=([^\s>]+)/);
+      console.log("Pattern 1 (src without quotes):", !!iframeMatch);
       
       if (!iframeMatch) {
-        // Pattern 2: Inside article-content with single quotes
-        iframeMatch = res.match(/<div[^>]*class="[^"]*article-content[^"]*"[^>]*>.*?<iframe[^>]*src='([^']+)'/s);
-        console.log("Pattern 2 (article-content + single quotes):", !!iframeMatch);
-      }
-      
-      if (!iframeMatch) {
-        // Pattern 3: Any iframe with double quotes
+        // Pattern 2: Any iframe with double quotes
         iframeMatch = res.match(/<iframe[^>]*src="([^"]+)"/);
-        console.log("Pattern 3 (any iframe + double quotes):", !!iframeMatch);
+        console.log("Pattern 2 (src double quotes):", !!iframeMatch);
       }
       
       if (!iframeMatch) {
-        // Pattern 4: Any iframe with single quotes
+        // Pattern 3: Any iframe with single quotes
         iframeMatch = res.match(/<iframe[^>]*src='([^']+)'/);
-        console.log("Pattern 4 (any iframe + single quotes):", !!iframeMatch);
+        console.log("Pattern 3 (src single quotes):", !!iframeMatch);
       }
       
       if (!iframeMatch) {
-        // Pattern 5: iframe with data-src double quotes
+        // Pattern 4: iframe with data-src double quotes
         iframeMatch = res.match(/<iframe[^>]*data-src="([^"]+)"/);
-        console.log("Pattern 5 (data-src double quotes):", !!iframeMatch);
+        console.log("Pattern 4 (data-src double quotes):", !!iframeMatch);
       }
       
       if (!iframeMatch) {
-        // Pattern 6: iframe with data-src single quotes
+        // Pattern 5: iframe with data-src single quotes
         iframeMatch = res.match(/<iframe[^>]*data-src='([^']+)'/);
-        console.log("Pattern 6 (data-src single quotes):", !!iframeMatch);
+        console.log("Pattern 5 (data-src single quotes):", !!iframeMatch);
+      }
+      
+      if (!iframeMatch) {
+        // Pattern 6: iframe with data-src without quotes
+        iframeMatch = res.match(/<iframe[^>]*data-src=([^\s>]+)/);
+        console.log("Pattern 6 (data-src without quotes):", !!iframeMatch);
       }
 
       // Debug: check for any iframes at all with both quote types and data-src
