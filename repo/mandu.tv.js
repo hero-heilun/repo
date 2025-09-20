@@ -250,16 +250,25 @@ export default class extends Extension {
 
   async detail(url) {
     try {
-      console.log("=== MANDU.TV DETAIL METHOD START ===");
-      console.log("Detail URL:", url);
-      console.log("Detail URL type:", typeof url);
-      console.log("Detail URL length:", url ? url.length : 0);
-      console.log("Arguments received:", arguments.length);
-      console.log("All arguments:", Array.from(arguments));
+      console.log("=== MANDU.TV DETAIL METHOD START v1.1 ===");
+      console.log("URL parameter:", JSON.stringify(url));
+      console.log("URL type:", typeof url);
+      console.log("URL length:", url ? url.length : 'null/undefined');
+      console.log("URL raw value:", url);
+      console.log("Arguments total:", arguments.length);
+      for (let i = 0; i < arguments.length; i++) {
+        console.log(`Argument[${i}]:`, JSON.stringify(arguments[i]), `(type: ${typeof arguments[i]})`);
+      }
+      console.log("Arguments array:", JSON.stringify(Array.from(arguments)));
 
       // Handle URL encoding issues - the app may pass encoded URLs
       let cleanUrl = url;
-      if (url && typeof url === 'string') {
+      
+      // 临时调试：如果URL为空，使用测试URL
+      if (!url || url.length === 0) {
+        console.log("⚠️ Empty URL detected, using test URL for debugging");
+        cleanUrl = "/md0362-淫僧释永信禅房偷拍实录-少林肉棒替女信徒消灾.html";
+      } else if (url && typeof url === 'string') {
         // Try to decode URL if it's encoded
         try {
           if (url.includes('%')) {
@@ -568,7 +577,12 @@ export default class extends Extension {
 
       // Handle URL encoding issues
       let cleanUrl = url;
-      if (url && typeof url === 'string') {
+      
+      // 临时调试：如果URL为空，使用测试URL
+      if (!url || url.length === 0) {
+        console.log("⚠️ Empty watch URL detected, using test URL for debugging");
+        cleanUrl = "https://madou.club/md0362-淫僧释永信禅房偷拍实录-少林肉棒替女信徒消灾.html";
+      } else if (url && typeof url === 'string') {
         try {
           if (url.includes('%')) {
             cleanUrl = decodeURIComponent(url);
@@ -689,12 +703,14 @@ export default class extends Extension {
             for (let attempt = 1; attempt <= 3; attempt++) {
               try {
                 console.log(`Iframe fetch attempt ${attempt}/3`);
+                // 确保Referer头部不包含中文字符，使用原始编码URL
+                const refererUrl = url; // 使用原始传入的URL（已编码）
                 iframeRes = await this.request(iframeUrl, {
                   headers: {
                     "Accept": "*/*",
                     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
                     "Accept-Encoding": "gzip, deflate, br",
-                    "Referer": cleanUrl,
+                    "Referer": refererUrl.startsWith('http') ? refererUrl : `https://madou.club${refererUrl}`,
                     "Origin": "https://madou.club",
                     "Sec-Fetch-Dest": "iframe",
                     "Sec-Fetch-Mode": "navigate",
