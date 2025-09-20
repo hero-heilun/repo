@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         麻豆传媒
-// @version      v0.0.1.2
+// @version      v0.0.1.3
 // @author       jason
 // @lang         zh-cn
 // @license      MIT
@@ -353,20 +353,60 @@ export default class extends Extension {
       // Extract iframe source - based on madou.js getTracks implementation
       const urls = [];
 
-      // Try multiple iframe patterns
-      let iframeMatch = res.match(/<div[^>]*class="[^"]*article-content[^"]*"[^>]*>.*?<iframe[^>]*src="([^"]+)"/s);
-
+      // Try multiple iframe patterns with both single and double quotes
+      let iframeMatch = null;
+      
+      // Pattern 1: Inside article-content with double quotes
+      iframeMatch = res.match(/<div[^>]*class="[^"]*article-content[^"]*"[^>]*>.*?<iframe[^>]*src="([^"]+)"/s);
+      console.log("Pattern 1 (article-content + double quotes):", !!iframeMatch);
+      
       if (!iframeMatch) {
-        // Try alternative patterns
+        // Pattern 2: Inside article-content with single quotes
+        iframeMatch = res.match(/<div[^>]*class="[^"]*article-content[^"]*"[^>]*>.*?<iframe[^>]*src='([^']+)'/s);
+        console.log("Pattern 2 (article-content + single quotes):", !!iframeMatch);
+      }
+      
+      if (!iframeMatch) {
+        // Pattern 3: Any iframe with double quotes
         iframeMatch = res.match(/<iframe[^>]*src="([^"]+)"/);
-        console.log("Trying alternative iframe pattern");
+        console.log("Pattern 3 (any iframe + double quotes):", !!iframeMatch);
+      }
+      
+      if (!iframeMatch) {
+        // Pattern 4: Any iframe with single quotes
+        iframeMatch = res.match(/<iframe[^>]*src='([^']+)'/);
+        console.log("Pattern 4 (any iframe + single quotes):", !!iframeMatch);
+      }
+      
+      if (!iframeMatch) {
+        // Pattern 5: iframe with data-src double quotes
+        iframeMatch = res.match(/<iframe[^>]*data-src="([^"]+)"/);
+        console.log("Pattern 5 (data-src double quotes):", !!iframeMatch);
+      }
+      
+      if (!iframeMatch) {
+        // Pattern 6: iframe with data-src single quotes
+        iframeMatch = res.match(/<iframe[^>]*data-src='([^']+)'/);
+        console.log("Pattern 6 (data-src single quotes):", !!iframeMatch);
       }
 
-      // Debug: check for any iframes at all
-      const allIframes = [...res.matchAll(/<iframe[^>]*src="([^"]+)"/g)];
+      // Debug: check for any iframes at all with both quote types and data-src
+      const allIframes = [
+        ...res.matchAll(/<iframe[^>]*src="([^"]+)"/g),
+        ...res.matchAll(/<iframe[^>]*src='([^']+)'/g),
+        ...res.matchAll(/<iframe[^>]*data-src="([^"]+)"/g),
+        ...res.matchAll(/<iframe[^>]*data-src='([^']+)'/g)
+      ];
       console.log("Total iframes found:", allIframes.length);
       allIframes.forEach((match, index) => {
         console.log(`Iframe ${index + 1}:`, match[1]);
+      });
+      
+      // Debug: also look for iframe tags without src
+      const iframeTagsOnly = [...res.matchAll(/<iframe[^>]*>/g)];
+      console.log("Total iframe tags (any):", iframeTagsOnly.length);
+      iframeTagsOnly.forEach((match, index) => {
+        console.log(`Iframe tag ${index + 1}:`, match[0]);
       });
 
       console.log("Looking for iframe in article-content");
@@ -655,11 +695,54 @@ export default class extends Extension {
           console.log("Page response length:", res.length);
           console.log("PAGE_CONTENT_DEBUG:", res);
 
-          // Look for iframe in the page content
-          let iframeMatch = res.match(/<div[^>]*class=\"[^\"]*article-content[^\"]*\"[^>]*>.*?<iframe[^>]*src=\"([^\"]+)\"/s);
+          // Look for iframe in the page content with multiple patterns
+          let iframeMatch = null;
+          
+          // Pattern 1: Inside article-content with double quotes
+          iframeMatch = res.match(/<div[^>]*class="[^"]*article-content[^"]*"[^>]*>.*?<iframe[^>]*src="([^"]+)"/s);
+          console.log("Watch Pattern 1 (article-content + double quotes):", !!iframeMatch);
+          
           if (!iframeMatch) {
-            iframeMatch = res.match(/<iframe[^>]*src=\"([^\"]+)\"/);
+            // Pattern 2: Inside article-content with single quotes
+            iframeMatch = res.match(/<div[^>]*class="[^"]*article-content[^"]*"[^>]*>.*?<iframe[^>]*src='([^']+)'/s);
+            console.log("Watch Pattern 2 (article-content + single quotes):", !!iframeMatch);
           }
+          
+          if (!iframeMatch) {
+            // Pattern 3: Any iframe with double quotes
+            iframeMatch = res.match(/<iframe[^>]*src="([^"]+)"/);
+            console.log("Watch Pattern 3 (any iframe + double quotes):", !!iframeMatch);
+          }
+          
+          if (!iframeMatch) {
+            // Pattern 4: Any iframe with single quotes
+            iframeMatch = res.match(/<iframe[^>]*src='([^']+)'/);
+            console.log("Watch Pattern 4 (any iframe + single quotes):", !!iframeMatch);
+          }
+          
+          if (!iframeMatch) {
+            // Pattern 5: iframe with data-src
+            iframeMatch = res.match(/<iframe[^>]*data-src="([^"]+)"/);
+            console.log("Watch Pattern 5 (data-src double quotes):", !!iframeMatch);
+          }
+          
+          if (!iframeMatch) {
+            // Pattern 6: iframe with data-src single quotes
+            iframeMatch = res.match(/<iframe[^>]*data-src='([^']+)'/);
+            console.log("Watch Pattern 6 (data-src single quotes):", !!iframeMatch);
+          }
+          
+          // Debug: show all iframe tags found
+          const allWatchIframes = [
+            ...res.matchAll(/<iframe[^>]*src="([^"]+)"/g),
+            ...res.matchAll(/<iframe[^>]*src='([^']+)'/g),
+            ...res.matchAll(/<iframe[^>]*data-src="([^"]+)"/g),
+            ...res.matchAll(/<iframe[^>]*data-src='([^']+)'/g)
+          ];
+          console.log("Watch - Total iframes found:", allWatchIframes.length);
+          allWatchIframes.forEach((match, index) => {
+            console.log(`Watch Iframe ${index + 1}:`, match[1]);
+          });
 
           if (iframeMatch) {
             const iframeUrl = iframeMatch[1];
@@ -912,8 +995,18 @@ export default class extends Extension {
             }
           });
 
-          // Look for iframe in the page
-          const iframeMatch = res.match(/<iframe[^>]*src="([^"]+)"/);
+          // Look for iframe in the page with multiple patterns
+          let iframeMatch = res.match(/<iframe[^>]*src="([^"]+)"/);
+          if (!iframeMatch) {
+            iframeMatch = res.match(/<iframe[^>]*src='([^']+)'/);
+          }
+          if (!iframeMatch) {
+            iframeMatch = res.match(/<iframe[^>]*data-src="([^"]+)"/);
+          }
+          if (!iframeMatch) {
+            iframeMatch = res.match(/<iframe[^>]*data-src='([^']+)'/);
+          }
+          
           if (iframeMatch && !iframeMatch[1].includes('about:blank')) {
             console.log("Found iframe in madou.club page:", iframeMatch[1]);
             // Recursively call watch with iframe URL
@@ -973,9 +1066,42 @@ export default class extends Extension {
 
           console.log("Reconstructed page response length:", res.length);
 
-          // Look for iframe in the page content
-          const iframePattern = /<iframe[^>]*src=["']([^"']+)["'][^>]*>/i;
-          const iframeMatch = res.match(iframePattern);
+          // Look for iframe in the page content with multiple patterns
+          let iframeMatch = null;
+          
+          // Pattern 1: src with double quotes
+          iframeMatch = res.match(/<iframe[^>]*src="([^"]+)"/i);
+          console.log("Reconstructed Pattern 1 (src double quotes):", !!iframeMatch);
+          
+          if (!iframeMatch) {
+            // Pattern 2: src with single quotes
+            iframeMatch = res.match(/<iframe[^>]*src='([^']+)'/i);
+            console.log("Reconstructed Pattern 2 (src single quotes):", !!iframeMatch);
+          }
+          
+          if (!iframeMatch) {
+            // Pattern 3: data-src with double quotes
+            iframeMatch = res.match(/<iframe[^>]*data-src="([^"]+)"/i);
+            console.log("Reconstructed Pattern 3 (data-src double quotes):", !!iframeMatch);
+          }
+          
+          if (!iframeMatch) {
+            // Pattern 4: data-src with single quotes
+            iframeMatch = res.match(/<iframe[^>]*data-src='([^']+)'/i);
+            console.log("Reconstructed Pattern 4 (data-src single quotes):", !!iframeMatch);
+          }
+          
+          // Debug: show all iframe tags found in reconstructed page
+          const allReconstructedIframes = [
+            ...res.matchAll(/<iframe[^>]*src="([^"]+)"/gi),
+            ...res.matchAll(/<iframe[^>]*src='([^']+)'/gi),
+            ...res.matchAll(/<iframe[^>]*data-src="([^"]+)"/gi),
+            ...res.matchAll(/<iframe[^>]*data-src='([^']+)'/gi)
+          ];
+          console.log("Reconstructed - Total iframes found:", allReconstructedIframes.length);
+          allReconstructedIframes.forEach((match, index) => {
+            console.log(`Reconstructed Iframe ${index + 1}:`, match[1]);
+          });
 
           if (iframeMatch) {
             const iframeUrl = iframeMatch[1];
