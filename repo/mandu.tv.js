@@ -598,7 +598,10 @@ export default class extends Extension {
           for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
               console.log(`Page fetch attempt ${attempt}/${maxRetries}`);
-              const urlPath = new URL(cleanUrl).pathname;
+              let urlPath = cleanUrl;
+              if (cleanUrl.startsWith("https://madou.club")) {
+                urlPath = cleanUrl.substring("https://madou.club".length);
+              }
               res = await this.request(urlPath, {
                 headers: {
                   "Miru-Url": "https://madou.club",
