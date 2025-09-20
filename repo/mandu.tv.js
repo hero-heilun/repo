@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         麻豆传媒
-// @version      v0.0.1.3
+// @version      v0.0.1.4
 // @author       jason
 // @lang         zh-cn
 // @license      MIT
@@ -408,6 +408,63 @@ export default class extends Extension {
       iframeTagsOnly.forEach((match, index) => {
         console.log(`Iframe tag ${index + 1}:`, match[0]);
       });
+      
+      // Debug: Look for article-content div to understand page structure
+      const articleContentMatch = res.match(/<div[^>]*class="[^"]*article-content[^"]*"[^>]*>(.*?)<\/div>/s);
+      if (articleContentMatch) {
+        console.log("Found article-content div, length:", articleContentMatch[1].length);
+        const articleContent = articleContentMatch[1];
+        
+        // Show first 500 chars of article content
+        console.log("Article content preview:", articleContent.substring(0, 500));
+        
+        // Look for any embed-related content
+        const embedKeywords = ['iframe', 'embed', 'player', 'video', 'src=', 'data-src='];
+        embedKeywords.forEach(keyword => {
+          if (articleContent.toLowerCase().includes(keyword)) {
+            console.log(`Found keyword "${keyword}" in article content`);
+          }
+        });
+      } else {
+        console.log("No article-content div found");
+        
+        // Look for other common content containers
+        const contentPatterns = [
+          /<div[^>]*class="[^"]*content[^"]*"[^>]*>/g,
+          /<div[^>]*class="[^"]*post[^"]*"[^>]*>/g,
+          /<div[^>]*class="[^"]*entry[^"]*"[^>]*>/g
+        ];
+        
+        contentPatterns.forEach((pattern, index) => {
+          const matches = [...res.matchAll(pattern)];
+          console.log(`Content pattern ${index + 1} matches:`, matches.length);
+        });
+      }
+      
+      // Debug: Show page title to verify we're getting the right page
+      const titleMatch = res.match(/<title>([^<]+)<\/title>/);
+      if (titleMatch) {
+        console.log("Page title:", titleMatch[1]);
+      }
+      
+      // Debug: Look for any script tags that might contain video info
+      const scriptTags = [...res.matchAll(/<script[^>]*>(.*?)<\/script>/gs)];
+      console.log("Total script tags found:", scriptTags.length);
+      
+      // Check scripts for video-related keywords
+      let foundVideoScript = false;
+      scriptTags.forEach((script, index) => {
+        const scriptContent = script[1];
+        if (scriptContent.includes('token') || scriptContent.includes('m3u8') || scriptContent.includes('video') || scriptContent.includes('player')) {
+          console.log(`Script ${index + 1} contains video keywords`);
+          console.log(`Script ${index + 1} preview:`, scriptContent.substring(0, 300));
+          foundVideoScript = true;
+        }
+      });
+      
+      if (!foundVideoScript) {
+        console.log("No scripts containing video keywords found");
+      }
 
       console.log("Looking for iframe in article-content");
       console.log("Iframe match found:", !!iframeMatch);
