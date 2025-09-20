@@ -250,14 +250,64 @@ export default class extends Extension {
         }
       }
       
-      // Extract video URLs - look for iframe in article-content
+      // Extract iframe source - based on madou.js getTracks implementation
       const urls = [];
-      const iframeMatches = [...res.matchAll(/<iframe[^>]*src="([^"]+)"/g)];
+      const iframeMatch = res.match(/<div[^>]*class="[^"]*article-content[^"]*"[^>]*>.*?<iframe[^>]*src="([^"]+)"/s);
       
-      console.log("Found iframes:", iframeMatches.length);
+      if (iframeMatch && !iframeMatch[1].includes('about:blank') && !iframeMatch[1].includes('googleads')) {
+        console.log("Found iframe source:", iframeMatch[1]);
+        
+        try {
+          // Fetch iframe content to extract video details
+          const iframeRes = await this.request(iframeMatch[1], {
+            headers: {
+              "Referer": `https://madou.club${url}`,
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+          });
+          
+          console.log("Iframe response length:", iframeRes.length);
+          
+          // Extract domain from iframe URL
+          const domainMatch = iframeMatch[1].match(/https?:\/\/([^\/]+)/);
+          const domain = domainMatch ? `https://${domainMatch[1]}` : "";
+          
+          // Extract token and m3u8 path from script
+          const tokenMatch = iframeRes.match(/token["']?\s*[:=]\s*["']([^"']+)["']/);
+          const m3u8Match = iframeRes.match(/m3u8["']?\s*[:=]\s*["']([^"']+)["']/);
+          
+          if (tokenMatch && m3u8Match && domain) {
+            const token = tokenMatch[1];
+            const m3u8Path = m3u8Match[1];
+            const playUrl = `${domain}${m3u8Path}?token=${token}`;
+            
+            console.log("Constructed play URL:", playUrl);
+            urls.push({
+              name: "播放",
+              url: playUrl,
+            });
+          } else {
+            console.log("Token or m3u8 not found, using iframe URL");
+            urls.push({
+              name: "播放",
+              url: iframeMatch[1],
+            });
+          }
+        } catch (iframeError) {
+          console.error("Failed to fetch iframe:", iframeError);
+          urls.push({
+            name: "播放",
+            url: iframeMatch[1],
+          });
+        }
+      }
       
-      iframeMatches.forEach((match, index) => {
-        if (!match[1].includes('about:blank') && !match[1].includes('googleads')) {
+      // Look for additional iframes
+      const additionalIframes = [...res.matchAll(/<iframe[^>]*src="([^"]+)"/g)];
+      additionalIframes.forEach((match, index) => {
+        if (!match[1].includes('about:blank') && 
+            !match[1].includes('googleads') && 
+            !urls.some(u => u.url === match[1])) {
           urls.push({
             name: `播放线路${index + 1}`,
             url: match[1],
@@ -301,6 +351,19 @@ export default class extends Extension {
     try {
       console.log("Watch URL:", url);
       
+      // If it's already a direct video URL with token
+      if (url.includes(".m3u8") && url.includes("token=")) {
+        console.log("Direct m3u8 URL with token");
+        return { 
+          type: "hls", 
+          url,
+          headers: {
+            "Referer": "https://madou.club/",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+          }
+        };
+      }
+      
       // If it's already a direct video URL
       if (url.includes(".mp4") || url.includes(".m3u8") || url.includes(".flv")) {
         return { 
@@ -313,58 +376,68 @@ export default class extends Extension {
         };
       }
       
-      // Handle iframe or embed URLs
-      if (url.includes("iframe") || url.includes("embed") || url.includes("player")) {
-        const res = await this.request(url, {
-          headers: {
-            "Referer": "https://madou.club/",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-          }
-        });
-        
-        console.log("Iframe response length:", res.length);
-        
-        // Based on madou.js - look for token and reconstruct m3u8 URL
-        const tokenMatch = res.match(/token["']?\s*[:=]\s*["']([^"']+)["']/);
-        const m3u8Match = res.match(/\.m3u8/);
-        
-        if (tokenMatch && m3u8Match) {
-          const token = tokenMatch[1];
-          const m3u8Url = `https://madou.club/20230827/${token}.m3u8`;
-          console.log("Constructed m3u8 URL:", m3u8Url);
-          return {
-            type: "hls",
-            url: m3u8Url,
+      // Handle iframe or embed URLs - this should match URLs from detail()
+      if (url.includes("iframe") || url.includes("embed") || url.includes("player") || url.includes("dash")) {
+        try {
+          const res = await this.request(url, {
             headers: {
               "Referer": "https://madou.club/",
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
             }
-          };
-        }
-        
-        // Try multiple patterns to extract video URLs
-        const patterns = [
-          /["']([^"']*\.m3u8[^"']*)['"]/,
-          /["']([^"']*\.mp4[^"']*)['"]/,
-          /src:\s*["']([^"']+\.(m3u8|mp4|flv))["']/,
-          /<source[^>]*src="([^"]+)"/,
-          /file:\s*["']([^"']+)["']/,
-          /url:\s*["']([^"']+)["']/
-        ];
-        
-        for (const pattern of patterns) {
-          const match = res.match(pattern);
-          if (match && match[1] && !match[1].includes('data:')) {
-            console.log("Found video URL:", match[1]);
-            return { 
-              type: match[1].includes(".m3u8") ? "hls" : "mp4", 
-              url: match[1],
+          });
+          
+          console.log("Iframe response length:", res.length);
+          
+          // Extract domain from URL
+          const domainMatch = url.match(/https?:\/\/([^\/]+)/);
+          const domain = domainMatch ? `https://${domainMatch[1]}` : "";
+          
+          // Extract token and m3u8 path from script
+          const tokenMatch = res.match(/token["']?\s*[:=]\s*["']([^"']+)["']/);
+          const m3u8Match = res.match(/m3u8["']?\s*[:=]\s*["']([^"']+)["']/);
+          
+          if (tokenMatch && m3u8Match && domain) {
+            const token = tokenMatch[1];
+            const m3u8Path = m3u8Match[1];
+            const playUrl = `${domain}${m3u8Path}?token=${token}`;
+            
+            console.log("Constructed play URL:", playUrl);
+            return {
+              type: "hls",
+              url: playUrl,
               headers: {
                 "Referer": "https://madou.club/",
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
               }
             };
           }
+          
+          // Try multiple patterns to extract video URLs
+          const patterns = [
+            /["']([^"']*\.m3u8[^"']*)['"]/,
+            /["']([^"']*\.mp4[^"']*)['"]/,
+            /src:\s*["']([^"']+\.(m3u8|mp4|flv))["']/,
+            /<source[^>]*src="([^"]+)"/,
+            /file:\s*["']([^"']+)["']/,
+            /url:\s*["']([^"']+)["']/
+          ];
+          
+          for (const pattern of patterns) {
+            const match = res.match(pattern);
+            if (match && match[1] && !match[1].includes('data:')) {
+              console.log("Found video URL:", match[1]);
+              return { 
+                type: match[1].includes(".m3u8") ? "hls" : "mp4", 
+                url: match[1],
+                headers: {
+                  "Referer": "https://madou.club/",
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                }
+              };
+            }
+          }
+        } catch (iframeError) {
+          console.error("Failed to process iframe URL:", iframeError);
         }
       }
       
