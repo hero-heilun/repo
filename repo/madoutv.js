@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         麻豆传媒
-// @version      v0.0.1.8
+// @version      v0.0.1.9
 // @author       jason
 // @lang         zh-cn
 // @license      MIT
@@ -11,6 +11,11 @@
 // @nsfw         true
 // ==/MiruExtension==
 
+// Immediate execution marker - should appear if script loads at all
+(function() {
+  console.log(">>> MADOUTV SCRIPT START EXECUTING v0.0.1.9 <<<");
+})();
+
 // Global test function to verify JavaScript execution
 globalThis.testFunction = function(testParam) {
   console.log("=== GLOBAL TEST FUNCTION ===");
@@ -19,8 +24,9 @@ globalThis.testFunction = function(testParam) {
   return "Global function works: " + testParam;
 };
 
-// Simple debug marker
-console.log("MADOUTV v0.0.1.8 LOADING");
+// Force cache bust with timestamp
+const timestamp = new Date().toISOString();
+console.log(`MADOUTV v0.0.1.9 LOADING AT ${timestamp}`);
 
 export default class extends Extension {
   genres = {
