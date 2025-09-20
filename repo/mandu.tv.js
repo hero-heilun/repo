@@ -11,6 +11,14 @@
 // @nsfw         true
 // ==/MiruExtension==
 
+// Global test function to verify JavaScript execution
+globalThis.testFunction = function(testParam) {
+  console.log("=== GLOBAL TEST FUNCTION ===");
+  console.log("Test parameter:", testParam);
+  console.log("Test parameter type:", typeof testParam);
+  return "Global function works: " + testParam;
+};
+
 export default class extends Extension {
   genres = {
     "guochan": "国产原创",
@@ -246,6 +254,8 @@ export default class extends Extension {
       console.log("Detail URL:", url);
       console.log("Detail URL type:", typeof url);
       console.log("Detail URL length:", url ? url.length : 0);
+      console.log("Arguments received:", arguments.length);
+      console.log("All arguments:", Array.from(arguments));
       
       // Handle URL encoding issues - the app may pass encoded URLs
       let cleanUrl = url;
@@ -514,7 +524,12 @@ export default class extends Extension {
 
   async watch(url) {
     try {
+      console.log("=== MANDU.TV WATCH METHOD START ===");
       console.log("Watch URL:", url);
+      console.log("Watch URL type:", typeof url);
+      console.log("Watch URL length:", url ? url.length : 0);
+      console.log("Arguments received:", arguments.length);
+      console.log("All arguments:", Array.from(arguments));
       
       // Handle URL encoding issues
       let cleanUrl = url;
