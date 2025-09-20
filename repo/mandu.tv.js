@@ -220,9 +220,14 @@ export default class extends Extension {
     console.log("Parsed videos count:", videos.length);
     
     // Debug: show first few videos
+    console.log("=== PARSED VIDEOS SUMMARY ===");
     videos.slice(0, 3).forEach((video, index) => {
       console.log(`Video ${index + 1}:`, video.title, "->", video.url);
     });
+    
+    if (videos.length === 0) {
+      console.error("NO VIDEOS PARSED - Check HTML structure or parsing logic");
+    }
     
     return videos;
   }
@@ -238,19 +243,19 @@ export default class extends Extension {
       // Validate URL first
       if (!url || url.trim() === "") {
         console.error("Empty detail URL provided");
-        console.error("This might be an app integration issue");
-        // For debugging, let's not throw an error immediately
-        // throw new Error("详情页链接为空");
+        console.error("This is an app integration issue - URL parameter not passed correctly");
+        console.error("Expected URL like: /md0362-xxx.html");
         
-        // Return a minimal structure to avoid crash
+        // We can see from logs that the URL exists in GetX tag, but app doesn't pass it
+        // For now, return error structure that won't crash the app
         return {
           title: "URL传递错误",
           cover: "",
-          desc: "详情页链接为空，这可能是app集成问题",
+          desc: "详情页链接为空。这是app端参数传递问题，URL参数没有正确传递给detail方法。从GetX tag可以看到URL存在但没有传递到extension。",
           episodes: [{
             title: "播放",
             urls: [{
-              name: "错误",
+              name: "需要修复app端",
               url: "https://madou.club/",
             }]
           }],
