@@ -122,12 +122,17 @@ export default class extends Extension {
         
         if (title && url) {
           console.log("Found video:", title);
+          console.log("Original URL:", url);
+          const cleanUrl = url.replace("https://madou.club", "");
+          console.log("Clean URL:", cleanUrl);
           videos.push({
             title,
-            url: url.replace("https://madou.club", ""),
+            url: cleanUrl,
             cover,
             update,
           });
+        } else {
+          console.log("Skipping video - Title:", title, "URL:", url);
         }
       }
     } else {
@@ -186,12 +191,18 @@ export default class extends Extension {
             }
             
             if (title && url) {
+              console.log("Fallback - Found video:", title);
+              console.log("Fallback - Original URL:", url);
+              const cleanUrl = url.replace("https://madou.club", "");
+              console.log("Fallback - Clean URL:", cleanUrl);
               videos.push({
                 title,
-                url: url.replace("https://madou.club", ""),
+                url: cleanUrl,
                 cover,
                 update: "",
               });
+            } else {
+              console.log("Fallback - Skipping video - Title:", title, "URL:", url);
             }
           }
           break;
@@ -200,6 +211,12 @@ export default class extends Extension {
     }
     
     console.log("Parsed videos count:", videos.length);
+    
+    // Debug: show first few videos
+    videos.slice(0, 3).forEach((video, index) => {
+      console.log(`Video ${index + 1}:`, video.title, "->", video.url);
+    });
+    
     return videos;
   }
 
