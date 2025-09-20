@@ -632,7 +632,7 @@ export default class extends Extension {
           }
 
           // Look for iframe in the page content
-          const iframePattern = /<iframe[^>]*src=([^\\s>]+)/i;
+          const iframePattern = /<iframe[^>]*src=['\"]?([^'\"\\s>]+)['\"]?/i;
           const iframeMatch = res.match(iframePattern);
 
           if (iframeMatch) {
@@ -880,7 +880,7 @@ export default class extends Extension {
           console.log("Reconstructed page response length:", res.length);
 
           // Look for iframe in the page content
-          const iframePattern = /<iframe[^>]*src=([^\\s>]+)/i;
+          const iframePattern = /<iframe[^>]*src=['\"]?([^'\"\\s>]+)['\"]?/i;
           const iframeMatch = res.match(iframePattern);
 
           if (iframeMatch) {
