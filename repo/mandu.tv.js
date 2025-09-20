@@ -646,9 +646,15 @@ export default class extends Extension {
             for (let attempt = 1; attempt <= 3; attempt++) {
               try {
                 console.log(`Iframe fetch attempt ${attempt}/3`);
+
                 const originMatch = iframeUrl.match(/^(https?:\\/\\/[^\\/]+)/);
                 const origin = originMatch ? originMatch[1] : '';
                 const urlPath = iframeUrl.substring(origin.length);
+
+                console.log("iframeUrl:", iframeUrl);
+                console.log("originMatch:", originMatch);
+                console.log("origin:", origin);
+                console.log("urlPath:", urlPath);
 
                 iframeRes = await this.request(urlPath, {
                   headers: {
