@@ -648,17 +648,8 @@ export default class extends Extension {
             for (let attempt = 1; attempt <= 3; attempt++) {
               try {
                 console.log(`Iframe fetch attempt ${attempt}/3`);
-                let urlPath = iframeUrl;
-                let origin = '';
-                if (iframeUrl.startsWith("http")) {
-                    const urlParts = iframeUrl.split('/');
-                    origin = urlParts[0] + '//' + urlParts[2];
-                    urlPath = '/' + urlParts.slice(3).join('/');
-                }
-
-                iframeRes = await this.request(urlPath, {
+                iframeRes = await this.request(iframeUrl, {
                   headers: {
-                    "Miru-Url": origin,
                     "Accept": "*/*",
                     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
                     "Accept-Encoding": "gzip, deflate, br",
