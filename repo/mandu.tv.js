@@ -549,6 +549,9 @@ export default class extends Extension {
       }
       
       console.log("Final watch URL to use:", cleanUrl);
+      console.log("URL contains madou.club:", cleanUrl.includes("madou.club"));
+      console.log("URL contains .html:", cleanUrl.includes(".html"));
+      console.log("URL type check:", typeof cleanUrl);
       
       // Validate URL first
       if (!cleanUrl || cleanUrl.trim() === "") {
