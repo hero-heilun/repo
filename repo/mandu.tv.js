@@ -770,12 +770,40 @@ export default class extends Extension {
         // Now try to process this URL using our madou.club logic
         try {
           console.log("Processing reconstructed madou.club page URL for video extraction");
-          const res = await this.request(reconstructedUrl, {
-            headers: {
-              "Referer": "https://madou.club/",
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+          
+          // Try multiple times with different configurations
+          let res = null;
+          const maxRetries = 3;
+          
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+              console.log(`Attempt ${attempt}/${maxRetries} to fetch page`);
+              res = await this.request(reconstructedUrl, {
+                headers: {
+                  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                  "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                  "Accept-Encoding": "gzip, deflate, br",
+                  "DNT": "1",
+                  "Connection": "keep-alive",
+                  "Upgrade-Insecure-Requests": "1",
+                  "Sec-Fetch-Dest": "document",
+                  "Sec-Fetch-Mode": "navigate",
+                  "Sec-Fetch-Site": "none",
+                  "Cache-Control": "max-age=0",
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                }
+              });
+              console.log(`Successfully fetched page on attempt ${attempt}`);
+              break;
+            } catch (requestError) {
+              console.log(`Attempt ${attempt} failed:`, requestError.message || requestError);
+              if (attempt === maxRetries) {
+                throw requestError;
+              }
+              // Wait a bit before retry
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
             }
-          });
+          }
           
           console.log("Reconstructed page response length:", res.length);
           
@@ -788,12 +816,35 @@ export default class extends Extension {
             console.log("Found iframe URL in reconstructed page:", iframeUrl);
             
             // Now fetch the iframe content
-            const iframeRes = await this.request(iframeUrl, {
-              headers: {
-                "Referer": reconstructedUrl,
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            console.log("Fetching iframe content with retry logic");
+            let iframeRes = null;
+            
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              try {
+                console.log(`Iframe attempt ${attempt}/3`);
+                iframeRes = await this.request(iframeUrl, {
+                  headers: {
+                    "Accept": "*/*",
+                    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Referer": reconstructedUrl,
+                    "Origin": "https://madou.club",
+                    "Sec-Fetch-Dest": "iframe",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "cross-site",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                  }
+                });
+                console.log(`Iframe fetch successful on attempt ${attempt}`);
+                break;
+              } catch (iframeError) {
+                console.log(`Iframe attempt ${attempt} failed:`, iframeError.message || iframeError);
+                if (attempt === 3) {
+                  throw iframeError;
+                }
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
               }
-            });
+            }
             
             console.log("Reconstructed iframe response length:", iframeRes.length);
             
