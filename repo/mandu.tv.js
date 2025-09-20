@@ -37,7 +37,11 @@ export default class extends Extension {
 
   async latest(page = 1) {
     try {
+      console.log("=== MANDU.TV LATEST METHOD START ===");
+      console.log("Latest page request:", page);
       const url = page === 1 ? "" : `/page/${page}`;
+      console.log("Latest URL:", url);
+      
       const res = await this.request(url, {
         headers: { 
           "Miru-Url": "https://madou.club",
@@ -45,7 +49,10 @@ export default class extends Extension {
         },
       });
       
-      return this.parseVideoList(res);
+      console.log("Latest response received, length:", res.length);
+      const videos = this.parseVideoList(res);
+      console.log("Latest returning", videos.length, "videos");
+      return videos;
     } catch (error) {
       console.error("Failed to fetch latest:", error);
       return [];
@@ -222,12 +229,32 @@ export default class extends Extension {
 
   async detail(url) {
     try {
+      console.log("=== MANDU.TV DETAIL METHOD START ===");
       console.log("Detail URL:", url);
+      console.log("Detail URL type:", typeof url);
+      console.log("Detail URL length:", url ? url.length : 0);
+      console.log("=== URL DEBUG INFO ===");
       
       // Validate URL first
       if (!url || url.trim() === "") {
         console.error("Empty detail URL provided");
-        throw new Error("详情页链接为空");
+        console.error("This might be an app integration issue");
+        // For debugging, let's not throw an error immediately
+        // throw new Error("详情页链接为空");
+        
+        // Return a minimal structure to avoid crash
+        return {
+          title: "URL传递错误",
+          cover: "",
+          desc: "详情页链接为空，这可能是app集成问题",
+          episodes: [{
+            title: "播放",
+            urls: [{
+              name: "错误",
+              url: "https://madou.club/",
+            }]
+          }],
+        };
       }
       
       const res = await this.request(url, {
