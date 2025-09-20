@@ -259,12 +259,16 @@ export default class extends Extension {
 
   async detail(url) {
     try {
-      console.log("=== MANDU.TV DETAIL METHOD START ===");
-      console.log("Detail URL:", url);
-      console.log("Detail URL type:", typeof url);
-      console.log("Detail URL length:", url ? url.length : 0);
-      console.log("Arguments received:", arguments.length);
-      console.log("All arguments:", Array.from(arguments));
+      console.log("=== MADOUTV DETAIL METHOD START v1.0 ===");
+      console.log("URL parameter:", url);
+      console.log("URL type:", typeof url);
+      console.log("URL length:", url ? url.length : 'null/undefined');
+      console.log("URL value (JSON):", JSON.stringify(url));
+      console.log("Arguments total:", arguments.length);
+      for (let i = 0; i < arguments.length; i++) {
+        console.log(`Argument[${i}]:`, arguments[i], `(type: ${typeof arguments[i]})`);
+      }
+      console.log("Raw arguments object:", arguments);
 
       // Handle URL encoding issues - the app may pass encoded URLs
       let cleanUrl = url;
@@ -661,12 +665,16 @@ export default class extends Extension {
 
   async watch(url) {
     try {
-      console.log("=== MANDU.TV WATCH METHOD START ===");
-      console.log("Watch URL:", url);
-      console.log("Watch URL type:", typeof url);
-      console.log("Watch URL length:", url ? url.length : 0);
-      console.log("Arguments received:", arguments.length);
-      console.log("All arguments:", Array.from(arguments));
+      console.log("=== MADOUTV WATCH METHOD START v1.0 ===");
+      console.log("URL parameter:", url);
+      console.log("URL type:", typeof url);
+      console.log("URL length:", url ? url.length : 'null/undefined');
+      console.log("URL value (JSON):", JSON.stringify(url));
+      console.log("Arguments total:", arguments.length);
+      for (let i = 0; i < arguments.length; i++) {
+        console.log(`Argument[${i}]:`, arguments[i], `(type: ${typeof arguments[i]})`);
+      }
+      console.log("Raw arguments object:", arguments);
 
       // Handle URL encoding issues
       let cleanUrl = url;
