@@ -631,7 +631,10 @@ export default class extends Extension {
             }
           }
 
+          console.log("Page response length:", res.length);
+
           // Look for iframe in the page content
+          const iframePattern = /<iframe[^>]*src=["']([^"']+)["'][^>]*>/i;
           const iframePattern = /<iframe[^>]*src=([^\\s>]+)/i;
           const iframeMatch = res.match(iframePattern);
 
@@ -653,9 +656,6 @@ export default class extends Extension {
                     origin = urlParts[0] + '//' + urlParts[2];
                     urlPath = '/' + urlParts.slice(3).join('/');
                 }
-                const originMatch = iframeUrl.match(/^(https?:\\/\\/[^\\/]+)/);
-                const origin = originMatch ? originMatch[1] : '';
-                const urlPath = iframeUrl.substring(origin.length);
 
                 iframeRes = await this.request(urlPath, {
                   headers: {
@@ -881,6 +881,7 @@ export default class extends Extension {
           console.log("Reconstructed page response length:", res.length);
 
           // Look for iframe in the page content
+          const iframePattern = /<iframe[^>]*src=["']([^"']+)["'][^>]*>/i;
           const iframePattern = /<iframe[^>]*src=([^\\s>]+)/i;
           const iframeMatch = res.match(iframePattern);
 
