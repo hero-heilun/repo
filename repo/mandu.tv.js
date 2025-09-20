@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         麻豆传媒
-// @version      v0.0.1.1
+// @version      v0.0.1.2
 // @author       jason
 // @lang         zh-cn
 // @license      MIT
@@ -628,8 +628,10 @@ export default class extends Extension {
           console.log("Page response length:", res.length);
 
           // Look for iframe in the page content
-          const iframePattern = /<iframe[^>]*src=["']([^"']+)["'][^>]*>/i;
-          const iframeMatch = res.match(iframePattern);
+          let iframeMatch = res.match(/<div[^>]*class=\"[^\"]*article-content[^\"]*\"[^>]*>.*?<iframe[^>]*src=\"([^\"]+)\"/s);
+          if (!iframeMatch) {
+            iframeMatch = res.match(/<iframe[^>]*src=\"([^\"]+)\"/);
+          }
 
           if (iframeMatch) {
             const iframeUrl = iframeMatch[1];
