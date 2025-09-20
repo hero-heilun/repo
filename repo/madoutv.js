@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         麻豆传媒
-// @version      v0.0.1.6
+// @version      v0.0.1.7
 // @author       jason
 // @lang         zh-cn
 // @license      MIT
@@ -18,6 +18,18 @@ globalThis.testFunction = function(testParam) {
   console.log("Test parameter type:", typeof testParam);
   return "Global function works: " + testParam;
 };
+
+// Debug extension instantiation
+console.log("=== MADOUTV EXTENSION LOADING ===");
+console.log("Extension script is executing...");
+console.log("Extension export default class available:", typeof Extension);
+
+// Check if Extension class is available
+if (typeof Extension === 'undefined') {
+  console.error("Extension base class is not defined!");
+} else {
+  console.log("Extension base class is available");
+}
 
 export default class extends Extension {
   genres = {
@@ -1312,4 +1324,18 @@ export default class extends Extension {
       };
     }
   }
+}
+
+// Debug: Extension class definition completed
+console.log("=== MADOUTV EXTENSION CLASS DEFINED ===");
+console.log("Extension class definition completed successfully");
+
+// Try to instantiate the class manually for debugging
+try {
+  const TestInstance = new (class extends Extension {
+    load() { return Promise.resolve(); }
+  })();
+  console.log("Manual extension instantiation test: SUCCESS");
+} catch (e) {
+  console.error("Manual extension instantiation test: FAILED", e);
 }
