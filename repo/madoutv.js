@@ -769,57 +769,27 @@ export default class extends Extension {
           console.log("Page response length:", res.length);
           console.log("PAGE_CONTENT_DEBUG:", res);
 
-          // Look for iframe in the page content with multiple patterns
-          let iframeMatch = null;
-          
-          // Pattern 1: Inside article-content with double quotes
-          iframeMatch = res.match(/<div[^>]*class="[^"]*article-content[^"]*"[^>]*>.*?<iframe[^>]*src="([^"]+)"/s);
-          console.log("Watch Pattern 1 (article-content + double quotes):", !!iframeMatch);
-          
-          if (!iframeMatch) {
-            // Pattern 2: Inside article-content with single quotes
-            iframeMatch = res.match(/<div[^>]*class="[^"]*article-content[^"]*"[^>]*>.*?<iframe[^>]*src='([^']+)'/s);
-            console.log("Watch Pattern 2 (article-content + single quotes):", !!iframeMatch);
-          }
-          
-          if (!iframeMatch) {
-            // Pattern 3: Any iframe with double quotes
-            iframeMatch = res.match(/<iframe[^>]*src="([^"]+)"/);
-            console.log("Watch Pattern 3 (any iframe + double quotes):", !!iframeMatch);
-          }
-          
-          if (!iframeMatch) {
-            // Pattern 4: Any iframe with single quotes
-            iframeMatch = res.match(/<iframe[^>]*src='([^']+)'/);
-            console.log("Watch Pattern 4 (any iframe + single quotes):", !!iframeMatch);
-          }
-          
-          if (!iframeMatch) {
-            // Pattern 5: iframe with data-src
-            iframeMatch = res.match(/<iframe[^>]*data-src="([^"]+)"/);
-            console.log("Watch Pattern 5 (data-src double quotes):", !!iframeMatch);
-          }
-          
-          if (!iframeMatch) {
-            // Pattern 6: iframe with data-src single quotes
-            iframeMatch = res.match(/<iframe[^>]*data-src='([^']+)'/);
-            console.log("Watch Pattern 6 (data-src single quotes):", !!iframeMatch);
-          }
-          
-          // Debug: show all iframe tags found
-          const allWatchIframes = [
-            ...res.matchAll(/<iframe[^>]*src="([^"]+)"/g),
-            ...res.matchAll(/<iframe[^>]*src='([^']+)'/g),
-            ...res.matchAll(/<iframe[^>]*data-src="([^"]+)"/g),
-            ...res.matchAll(/<iframe[^>]*data-src='([^']+)'/g)
+          // 查找 iframe (使用test_madoutv.js中验证过的简化逻辑)
+          const iframePatterns = [
+            /<iframe[^>]*src=([^\s>]+)/, // 无引号 (madou.club 的格式)
+            /<iframe[^>]*src="([^"]+)"/, // 双引号
+            /<iframe[^>]*src='([^']+)'/, // 单引号
+            /<iframe[^>]*data-src="([^"]+)"/, // data-src 双引号
+            /<iframe[^>]*data-src='([^']+)'/, // data-src 单引号
+            /<iframe[^>]*data-src=([^\s>]+)/ // data-src 无引号
           ];
-          console.log("Watch - Total iframes found:", allWatchIframes.length);
-          allWatchIframes.forEach((match, index) => {
-            console.log(`Watch Iframe ${index + 1}:`, match[1]);
-          });
+          
+          let iframeUrl = null;
+          for (let i = 0; i < iframePatterns.length; i++) {
+            const match = res.match(iframePatterns[i]);
+            if (match && !match[1].includes('about:blank') && !match[1].includes('googleads')) {
+              iframeUrl = match[1];
+              console.log(`🎯 Found iframe (pattern ${i + 1}): ${iframeUrl}`);
+              break;
+            }
+          }
 
-          if (iframeMatch) {
-            const iframeUrl = iframeMatch[1];
+          if (iframeUrl) {
             console.log("Found iframe URL in page:", iframeUrl);
 
             // Now fetch the iframe content with retry logic
