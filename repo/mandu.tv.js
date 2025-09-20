@@ -602,6 +602,7 @@ export default class extends Extension {
               if (cleanUrl.startsWith("https://madou.club")) {
                 urlPath = cleanUrl.substring("https://madou.club".length);
               }
+              console.log("Requesting path:", urlPath);
               res = await this.request(urlPath, {
                 headers: {
                   "Miru-Url": "https://madou.club",
