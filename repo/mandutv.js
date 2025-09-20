@@ -1,11 +1,11 @@
 // ==MiruExtension==
 // @name         麻豆传媒
-// @version      v0.0.1.4
+// @version      v0.0.1.5
 // @author       jason
 // @lang         zh-cn
 // @license      MIT
 // @icon         https://madou.club/favicon.ico
-// @package      mandu.tv
+// @package      mandutv
 // @type         bangumi
 // @webSite      https://madou.club
 // @nsfw         true
