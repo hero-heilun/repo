@@ -555,12 +555,16 @@ export default class extends Extension {
 
   async watch(url) {
     try {
-      console.log("=== MANDU.TV WATCH METHOD START ===");
-      console.log("Watch URL:", url);
-      console.log("Watch URL type:", typeof url);
-      console.log("Watch URL length:", url ? url.length : 0);
-      console.log("Arguments received:", arguments.length);
-      console.log("All arguments:", Array.from(arguments));
+      console.log("=== MANDU.TV WATCH METHOD START v1.0 ===");
+      console.log("URL parameter:", url);
+      console.log("URL type:", typeof url);
+      console.log("URL length:", url ? url.length : 'null/undefined');
+      console.log("URL value (JSON):", JSON.stringify(url));
+      console.log("Arguments total:", arguments.length);
+      for (let i = 0; i < arguments.length; i++) {
+        console.log(`Argument[${i}]:`, arguments[i], `(type: ${typeof arguments[i]})`);
+      }
+      console.log("Raw arguments object:", arguments);
 
       // Handle URL encoding issues
       let cleanUrl = url;
@@ -655,14 +659,27 @@ export default class extends Extension {
           console.log("Page response length:", res.length);
           console.log("PAGE_CONTENT_DEBUG:", res);
 
-          // Look for iframe in the page content
-          let iframeMatch = res.match(/<div[^>]*class=\"[^\"]*article-content[^\"]*\"[^>]*>.*?<iframe[^>]*src=\"([^\"]+)\"/s);
-          if (!iframeMatch) {
-            iframeMatch = res.match(/<iframe[^>]*src=\"([^\"]+)\"/);
+          // 查找 iframe (使用test_madoutv.js中验证过的全面逻辑)
+          const iframePatterns = [
+            /<iframe[^>]*src=([^\s>]+)/, // 无引号 (madou.club 的格式)
+            /<iframe[^>]*src="([^"]+)"/, // 双引号
+            /<iframe[^>]*src='([^']+)'/, // 单引号
+            /<iframe[^>]*data-src="([^"]+)"/, // data-src 双引号
+            /<iframe[^>]*data-src='([^']+)'/, // data-src 单引号
+            /<iframe[^>]*data-src=([^\s>]+)/ // data-src 无引号
+          ];
+          
+          let iframeUrl = null;
+          for (let i = 0; i < iframePatterns.length; i++) {
+            const match = res.match(iframePatterns[i]);
+            if (match && !match[1].includes('about:blank') && !match[1].includes('googleads')) {
+              iframeUrl = match[1];
+              console.log(`🎯 Found iframe (pattern ${i + 1}): ${iframeUrl}`);
+              break;
+            }
           }
 
-          if (iframeMatch) {
-            const iframeUrl = iframeMatch[1];
+          if (iframeUrl) {
             console.log("Found iframe URL in page:", iframeUrl);
 
             // Now fetch the iframe content with retry logic
@@ -710,48 +727,40 @@ export default class extends Extension {
             let token = null;
             let m3u8Path = null;
 
-            // First try the 6th script tag (index 5) as per madou.js reference
+            // 检查第6个脚本标签（索引5）
             if (scriptMatches.length > 5) {
               const scriptContent = scriptMatches[5][1];
-              console.log("Checking 6th script tag (index 5) for watch method");
-
-              // Use exact patterns from madou.js
+              console.log(`🔍 Checking 6th script tag (${scriptContent.length} chars)`);
+              
               const tokenMatch = scriptContent.match(/var token = "(.+?)";/);
               const m3u8Match = scriptContent.match(/var m3u8 = '(.+?)';/);
-
+              
               if (tokenMatch && m3u8Match) {
                 token = tokenMatch[1];
                 m3u8Path = m3u8Match[1];
-                console.log("Found token in 6th script (watch):", token.substring(0, 20) + "...");
-                console.log("Found m3u8 path in 6th script (watch):", m3u8Path);
+                console.log(`🔑 Found token: ${token.substring(0, 20)}...`);
+                console.log(`🎬 Found m3u8 path: ${m3u8Path}`);
               }
             }
 
-            // If not found in 6th script, search all scripts
+            // 如果在第6个脚本中没找到，搜索所有脚本 (完全使用test_madoutv.js的逻辑)
             if (!token || !m3u8Path) {
-              console.log("Not found in 6th script, searching all scripts (watch)");
+              console.log(`🔍 Searching all scripts for token/m3u8...`);
               for (let i = 0; i < scriptMatches.length; i++) {
                 const scriptContent = scriptMatches[i][1];
-
-                // Use exact patterns from madou.js first, then fallbacks
-                let tokenMatch = scriptContent.match(/var token = "(.+?)";/);
-                let m3u8Match = scriptContent.match(/var m3u8 = '(.+?)';/);
-
-                // Fallback patterns
-                if (!tokenMatch) {
-                  tokenMatch = scriptContent.match(/token\s*=\s*["']([^"']+)["']/);
-                }
-                if (!m3u8Match) {
-                  m3u8Match = scriptContent.match(/["']([^"']*\.m3u8[^"']*)["']/);
-                }
-
+                
+                const tokenMatch = scriptContent.match(/var token = "(.+?)";/) ||
+                                  scriptContent.match(/token["']?\s*[:=]\s*["']([^"']+)["']/);
+                const m3u8Match = scriptContent.match(/var m3u8 = '(.+?)';/) ||
+                                 scriptContent.match(/m3u8["']?\s*[:=]\s*["']([^"']+)["']/);
+                
                 if (tokenMatch) {
                   token = tokenMatch[1];
-                  console.log("Found token (watch):", token.substring(0, 20) + "...");
+                  console.log(`🔑 Found token in script ${i + 1}: ${token.substring(0, 20)}...`);
                 }
                 if (m3u8Match) {
                   m3u8Path = m3u8Match[1];
-                  console.log("Found m3u8 path (watch):", m3u8Path);
+                  console.log(`🎬 Found m3u8 in script ${i + 1}: ${m3u8Path}`);
                 }
 
                 if (token && m3u8Path) {
@@ -763,11 +772,8 @@ export default class extends Extension {
 
             if (token && m3u8Path && domain) {
               const playUrl = `${domain}${m3u8Path}?token=${token}`;
-
-              console.log("Extracted token (watch):", token.substring(0, 20) + "...");
-              console.log("Extracted m3u8 path (watch):", m3u8Path);
-              console.log("Final video URL (watch):", playUrl);
-
+              console.log(`\n✅ SUCCESS! Final video URL: ${playUrl}`);
+              
               return {
                 type: "hls",
                 url: playUrl,
@@ -776,6 +782,11 @@ export default class extends Extension {
                   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
                 }
               };
+            } else {
+              console.log(`\n❌ FAILED to extract video URL`);
+              console.log(`   Domain: ${domain}`);
+              console.log(`   Token: ${token ? token.substring(0, 20) + '...' : 'null'}`);
+              console.log(`   M3U8: ${m3u8Path || 'null'}`);
             }
           }
 
