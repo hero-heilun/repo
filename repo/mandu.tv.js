@@ -583,14 +583,44 @@ export default class extends Extension {
       
       // Handle madou.club page URLs (like the ones from detail fallback)
       if (cleanUrl.includes("madou.club") && cleanUrl.includes(".html")) {
+        console.log("=== MADOU.CLUB PAGE URL DETECTED ===");
         console.log("Processing madou.club page URL for video extraction");
+        console.log("URL to process:", cleanUrl);
+        
         try {
-          const res = await this.request(cleanUrl, {
-            headers: {
-              "Referer": "https://madou.club/",
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+          // Try multiple times with different configurations
+          let res = null;
+          const maxRetries = 3;
+          
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+              console.log(`Page fetch attempt ${attempt}/${maxRetries}`);
+              res = await this.request(cleanUrl, {
+                headers: {
+                  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                  "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                  "Accept-Encoding": "gzip, deflate, br", 
+                  "DNT": "1",
+                  "Connection": "keep-alive",
+                  "Upgrade-Insecure-Requests": "1",
+                  "Sec-Fetch-Dest": "document",
+                  "Sec-Fetch-Mode": "navigate", 
+                  "Sec-Fetch-Site": "none",
+                  "Cache-Control": "max-age=0",
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                }
+              });
+              console.log(`Page fetch successful on attempt ${attempt}`);
+              break;
+            } catch (requestError) {
+              console.log(`Page fetch attempt ${attempt} failed:`, requestError.message || requestError);
+              if (attempt === maxRetries) {
+                throw requestError;
+              }
+              // Wait before retry
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
             }
-          });
+          }
           
           console.log("Page response length:", res.length);
           
@@ -602,13 +632,36 @@ export default class extends Extension {
             const iframeUrl = iframeMatch[1];
             console.log("Found iframe URL in page:", iframeUrl);
             
-            // Now fetch the iframe content
-            const iframeRes = await this.request(iframeUrl, {
-              headers: {
-                "Referer": cleanUrl,
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            // Now fetch the iframe content with retry logic
+            console.log("Fetching iframe content with retry logic");
+            let iframeRes = null;
+            
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              try {
+                console.log(`Iframe fetch attempt ${attempt}/3`);
+                iframeRes = await this.request(iframeUrl, {
+                  headers: {
+                    "Accept": "*/*",
+                    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Referer": cleanUrl,
+                    "Origin": "https://madou.club",
+                    "Sec-Fetch-Dest": "iframe",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "cross-site",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                  }
+                });
+                console.log(`Iframe fetch successful on attempt ${attempt}`);
+                break;
+              } catch (iframeError) {
+                console.log(`Iframe fetch attempt ${attempt} failed:`, iframeError.message || iframeError);
+                if (attempt === 3) {
+                  throw iframeError;
+                }
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
               }
-            });
+            }
             
             console.log("Iframe response length:", iframeRes.length);
             
@@ -761,6 +814,7 @@ export default class extends Extension {
       
       // Check if URL is empty or invalid - but try to handle this case
       if (!cleanUrl || cleanUrl.trim() === "") {
+        console.log("=== WATCH METHOD EMPTY URL DETECTED ===");
         console.log("Watch method received empty URL, attempting to construct from detail fallback");
         
         // Use the same URL that our detail method provides as fallback
