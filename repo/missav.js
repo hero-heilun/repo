@@ -12,8 +12,52 @@
 // ==/MiruExtension==
 
 export default class extends Extension {
+  constructor() {
+    super();
+    // 使用参考代码中的User-Agent
+    this.userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Mobile/15E148 Safari/604.1';
+  }
+
   async load() {
     // Pre-defined categories to avoid parsing issues
+  }
+
+  // 处理Cloudflare保护的通用方法
+  async handleCloudflare(url) {
+    console.log("⚠️ Cloudflare protection detected for:", url);
+    
+    // 在Miru环境中，我们无法调用Safari，所以使用不同的策略
+    // 1. 尝试使用不同的请求参数
+    // 2. 模拟真实的浏览器行为
+    
+    try {
+      const response = await this.request(url, {
+        headers: {
+          "User-Agent": this.userAgent,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+          "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+          "Accept-Encoding": "gzip, deflate, br",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Sec-Fetch-Dest": "document",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-Site": "none",
+          "Sec-Fetch-User": "?1",
+          "Upgrade-Insecure-Requests": "1",
+          "Connection": "keep-alive"
+        }
+      });
+      
+      if (response.includes('Just a moment...') || response.includes('cloudflare')) {
+        console.log("Still blocked, using fallback data");
+        return null; // 让调用者处理fallback
+      }
+      
+      return response;
+    } catch (error) {
+      console.log("Cloudflare bypass failed:", error.message);
+      return null;
+    }
   }
 
   async createFilter() {
@@ -44,13 +88,15 @@ export default class extends Extension {
       const url = page === 1 ? "" : `?page=${page}`;
       console.log("Request URL:", url);
 
-      const res = await this.request(url, {
+      // 首次请求
+      let res = await this.request(url, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "User-Agent": this.userAgent,
           "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
           "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
           "Accept-Encoding": "gzip, deflate, br",
-          "Cache-Control": "max-age=0",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
           "Sec-Fetch-Dest": "document",
           "Sec-Fetch-Mode": "navigate",
           "Sec-Fetch-Site": "none",
@@ -58,6 +104,15 @@ export default class extends Extension {
           "Upgrade-Insecure-Requests": "1"
         }
       });
+
+      // 检查是否遇到Cloudflare保护
+      if (res.includes('Just a moment...') || res.includes('cloudflare')) {
+        console.log("Cloudflare detected, trying alternative approach...");
+        const alternativeRes = await this.handleCloudflare(url);
+        if (alternativeRes) {
+          res = alternativeRes;
+        }
+      }
 
       console.log("Latest response length:", res.length);
 
@@ -156,9 +211,10 @@ export default class extends Extension {
 
       const res = await this.request(url, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-          "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"
+          "User-Agent": this.userAgent,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+          "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+          "Accept-Encoding": "gzip, deflate, br"
         }
       });
 
@@ -224,9 +280,10 @@ export default class extends Extension {
 
       const res = await this.request(cleanUrl, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-          "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"
+          "User-Agent": this.userAgent,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+          "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+          "Accept-Encoding": "gzip, deflate, br"
         }
       });
 
@@ -316,10 +373,12 @@ export default class extends Extension {
 
       const res = await this.request(cleanUrl, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          "User-Agent": this.userAgent,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
           "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-          "Referer": "https://missav.ai/"
+          "Accept-Encoding": "gzip, deflate, br",
+          "Referer": "https://missav.ai/",
+          "Cache-Control": "no-cache"
         }
       });
 
@@ -331,23 +390,37 @@ export default class extends Extension {
 
       let videoUrl = null;
 
-      // 直接从URL提取视频ID并构建m3u8 URL (基于参考代码逻辑)
-      const videoIdMatch = cleanUrl.match(/\/([A-Z0-9-]+)(?:\/|$)/);
-      if (videoIdMatch) {
-        const videoId = videoIdMatch[1];
-        console.log(`🎬 Extracted video ID: ${videoId}`);
+      // 基于参考代码的UUID提取逻辑
+      const uuidMatch = res.match(/nineyu\.com\\?\/(.+?)\\?\/seek\\?\/_0\.jpg/) ||
+                       res.match(/nineyu\.com\/(.+?)\/seek\/_0\.jpg/) ||
+                       res.match(/uuid["']\s*:\s*["']([^"']+)["']/);
+      
+      if (uuidMatch) {
+        const uuid = uuidMatch[1];
+        console.log(`🎬 Found UUID: ${uuid}`);
         
-        // 基于参考实现的URL构建逻辑
-        const possibleUrls = [
-          `https://d2pass.com/missav/${videoId}/playlist.m3u8`,
-          `https://surrit.com/${videoId}/playlist.m3u8`,
-          `https://streamtape.com/v/${videoId}/`,
-          `https://dood.la/d/${videoId}`
-        ];
-        
-        // 使用第一个URL作为主要源
-        videoUrl = possibleUrls[0];
-        console.log(`🎬 Built m3u8 URL: ${videoUrl}`);
+        // 基于参考实现构建m3u8 URL
+        videoUrl = `https://surrit.com/${uuid}/playlist.m3u8`;
+        console.log(`🎬 Built m3u8 URL from UUID: ${videoUrl}`);
+      } else {
+        // Fallback: 直接从URL提取视频ID并构建m3u8 URL
+        const videoIdMatch = cleanUrl.match(/\/([A-Z0-9-]+)(?:\/|$)/);
+        if (videoIdMatch) {
+          const videoId = videoIdMatch[1];
+          console.log(`🎬 Extracted video ID: ${videoId}`);
+          
+          // 基于参考实现的URL构建逻辑
+          const possibleUrls = [
+            `https://surrit.com/${videoId}/playlist.m3u8`,
+            `https://d2pass.com/missav/${videoId}/playlist.m3u8`,
+            `https://streamtape.com/v/${videoId}/`,
+            `https://dood.la/d/${videoId}`
+          ];
+          
+          // 使用第一个URL作为主要源
+          videoUrl = possibleUrls[0];
+          console.log(`🎬 Built m3u8 URL from video ID: ${videoUrl}`);
+        }
       }
 
       // 备用：查找脚本中的UUID或其他标识符
