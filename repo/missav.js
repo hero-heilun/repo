@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.0.6
+// @version      v0.0.7
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -329,42 +329,22 @@ export default class extends Extension {
         }
       });
 
-      console.log("res value after initial request:", res);
+      console.log("res value after initial request (before Cloudflare check):", res);
       console.log("typeof res after initial request:", typeof res);
-      console.log("res instanceof String after initial request:", res instanceof String);
-      if (res === null || typeof res === 'undefined') {
-        console.log("res is null or undefined after initial request.");
-      } else if (typeof res !== 'string') {
-        console.log("res is not a string. Attempting conversion to string.");
-        res = String(res);
-        console.log("res after conversion (first 500 chars):", res.substring(0, 500));
-      }
 
       // 检查是否遇到Cloudflare保护
-      if (res.includes('Just a moment...') || res.includes('cloudflare')) {
+      if (res && (res.includes('Just a moment...') || res.includes('cloudflare'))) {
         console.log("Cloudflare detected, trying alternative approach...");
-        let alternativeRes = await this.handleCloudflare(url);
+        const alternativeRes = await this.handleCloudflare(url);
         console.log("alternativeRes value:", alternativeRes);
         console.log("typeof alternativeRes:", typeof alternativeRes);
-        console.log("alternativeRes instanceof String:", alternativeRes instanceof String);
-        if (alternativeRes === null || typeof alternativeRes === 'undefined') {
-          console.log("alternativeRes is null or undefined.");
-        } else if (typeof alternativeRes !== 'string') {
-          console.log("alternativeRes is not a string. Attempting conversion to string.");
-          alternativeRes = String(alternativeRes);
-          console.log("alternativeRes after conversion (first 500 chars):", alternativeRes.substring(0, 500));
-        }
         if (alternativeRes) {
           res = alternativeRes;
         }
       }
 
-      console.log("res value after Cloudflare check:", res);
-      console.log("typeof res after Cloudflare check:", typeof res);
-      console.log("res instanceof String after Cloudflare check:", res instanceof String);
-      if (res === null || typeof res === 'undefined') {
-        console.log("res is null or undefined after Cloudflare check.");
-      }
+      console.log("res value after Cloudflare handling:", res);
+      console.log("typeof res after Cloudflare handling:", typeof res);
 
       console.log("Full HTML response:", res);
       console.log("Search response length:", res ? res.length : 'res is null/undefined');
