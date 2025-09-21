@@ -236,6 +236,8 @@ async function testMissAV() {
     // 测试第一个视频的 detail 和 watch
     const testVideo = latestResult[0];
     console.log('\n=== TESTING DETAIL METHOD ===');
+    console.log('Calling detail with URL:', testVideo.url);
+    console.log('URL type:', typeof testVideo.url);
     const detailResult = await extension.detail(testVideo.url);
     
     if (detailResult) {

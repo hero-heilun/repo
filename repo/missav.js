@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.1.1
+// @version      v0.1.2
 // @author       jason
 // @lang         all
 // @license      MIT
