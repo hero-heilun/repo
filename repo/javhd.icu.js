@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         JAVHD.icu
-// @version      v0.0.6
+// @version      v0.0.7
 // @author       bachig26
 // @lang         jp
 // @license      MIT
@@ -37,7 +37,11 @@ export default class extends Extension {
 
   async search(kw) {
 	const kwstring = kw.replace(/ /g, '+');
-    const res = await this.request(`/?s=${kwstring}`);
+    const res = await this.request(`/?s=${kwstring}`, {
+      headers: {
+        'Accept-Encoding': 'identity',
+      },
+    });
     const bsxList = await this.querySelectorAll(res, "div.item.col-xl-4.col-lg-4.col-md-4.col-sm-6");
     const novel = [];
 
@@ -146,6 +150,7 @@ export default class extends Extension {
             headers: {
                 "referer": url.includes("emturbovid.com") ? "https://emturbovid.com/" : "https://turbovidhls.com/",
                 "origin": url.includes("emturbovid.com") ? "https://emturbovid.com" : "https://turbovidhls.com",
+                'Accept-Encoding': 'identity'
             },
             method: "GET",
         });
