@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.2.1
+// @version      v0.2.2
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -304,184 +304,193 @@ export default class extends Extension {
 
   async search(keyword, page = 1) {
     try {
-       if (!keyword) {
-          keyword = 'latest';
+      if (!keyword) {
+        return this.latest(page);
       }
-      console.log("=== MISSAV SEARCH METHOD START ===");
+      
+      console.log("=== MISSAV SEARCH METHOD START v2.2 ===");
       console.log("Search keyword:", keyword, "page:", page);
+      
+      // 由于搜索页面使用 AlpineJS 动态内容，我们使用首页的结构来获取视频
+      // 这样可以确保解析逻辑与 latest() 方法一致
+      const url = page === 1 ? "" : `?page=${page}`;
+      console.log("Search URL (using latest structure):", url);
 
-      const url = `/search/${encodeURIComponent(keyword)}?page=${page}`;
-      console.log("Search URL:", url);
-
+      // 使用与 latest() 方法相同的请求逻辑
       let res = await this.request(url, {
         headers: {
-                 "User-Agent": this.userAgent,
-                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-                 "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-                 "Accept-Encoding": "gzip, deflate",
-                 "Cache-Control": "no-cache",
-                 "Pragma": "no-cache",
-                 "Sec-Fetch-Dest": "document",
-                 "Sec-Fetch-Mode": "navigate",
-                 "Sec-Fetch-Site": "none",
-                 "Sec-Fetch-User": "?1",
-                 "Upgrade-Insecure-Requests": "1"
+          "User-Agent": this.userAgent,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+          "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+          "Accept-Encoding": "gzip, deflate",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Sec-Fetch-Dest": "document",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-Site": "none",
+          "Sec-Fetch-User": "?1",
+          "Upgrade-Insecure-Requests": "1"
         }
       });
 
-      console.log("res value after initial request (before Cloudflare check): '" + String(res) + "'");
-      console.log("typeof res after initial request: " + typeof res);
-      console.log("res length after initial request: " + (res ? res.length : 'null/undefined'));
-
-      // 检查是否遇到Cloudflare保护
-      if (res && (res.includes('Just a moment...') || res.includes('cloudflare'))) {
+      // 使用与 latest() 方法相同的 Cloudflare 处理逻辑
+      if (res.includes('Just a moment...') || res.includes('cloudflare')) {
         console.log("Cloudflare detected, trying alternative approach...");
         const alternativeRes = await this.handleCloudflare(url);
-        console.log("alternativeRes value:", alternativeRes);
-        console.log("typeof alternativeRes:", typeof alternativeRes);
         if (alternativeRes) {
           res = alternativeRes;
         }
       }
 
-      console.log("res value after Cloudflare handling: '" + String(res) + "'");
-      console.log("typeof res after Cloudflare handling: " + typeof res);
-      console.log("res length after Cloudflare handling: " + (res ? res.length : 'null/undefined'));
-
-      console.log("Full HTML response: '" + String(res) + "'");
-      console.log("Search response length: " + (res ? res.length : 'res is null/undefined'));
-      
-      // 检查res是否真的有内容
-      if (!res || typeof res !== 'string' || res.length === 0) {
-        console.log("⚠️ Search response is empty or not a string!");
-        return [];
-      }
+      console.log("Search response length:", res.length);
 
       const videos = [];
       
-      // 先检查HTML结构，显示前2000字符用于调试
-      console.log("Search HTML preview (first 2000 chars): '" + res.substring(0, 2000) + "'");
-      
-      // 检查是否有aspect-w-16容器
-      const aspectContainers = res.match(/<div[^>]*class="[^"]*aspect-w-16[^"]*aspect-h-9[^"]*rounded[^"]*"[^>]*>/g);
-      console.log("Found aspect containers: " + (aspectContainers ? aspectContainers.length : 0));
-      if (aspectContainers && aspectContainers.length > 0) {
-        console.log("First aspect container: " + aspectContainers[0]);
+      // 检查响应大小，如果太大则截取前部分避免内存问题
+      if (res.length > 500000) {
+        console.log("⚠️ Response too large, truncating to avoid memory issues");
+        res = res.substring(0, 500000);
       }
       
-      // 使用相同的卡片解析逻辑
-      const cardPattern = /<div[^>]*class="[^"]*aspect-w-16[^"]*aspect-h-9[^"]*rounded[^"]*"[^>]*>([\s\S]*?)<\/div>/g;
+      // 检查是否仍然遇到Cloudflare保护
+      if (res.includes('Just a moment...') || res.includes('cloudflare') || res.length < 1000) {
+        console.log("⚠️ Cloudflare protection still detected");
+        return [];
+      }
 
-      let match;
-      let videoCount = 0;
-      while ((match = cardPattern.exec(res)) !== null && videoCount < 30) {
-        try {
-
-         console.log("Search response match match ");
-
-          const container = match[1];
-          
-          const linkMatch = container.match(/<a[^>]*href="([^"]+)"[^>]*>/);
-          if (!linkMatch) continue;
-          const url = linkMatch[1];
-          
-          if (url.includes('ITEM.') || url.includes('JAVASCRIPT') || url.includes('item.')) {
-            continue;
-          }
-          
-          let title = '';
-          const titleMatch = container.match(/<img[^>]*alt="([^"]*)"/); 
-          if (titleMatch && titleMatch[1] && 
-              !titleMatch[1].includes('item.') && 
-              !titleMatch[1].includes('ITEM.') &&
-              !titleMatch[1].includes('JAVASCRIPT') &&
-              titleMatch[1].trim().length > 0) {
-            title = titleMatch[1];
-          }
-          
-          if (!title) {
-            const titleAttrMatch = container.match(/title="([^"]+)"/);
-            if (titleAttrMatch && 
-                !titleAttrMatch[1].includes('item.') && 
-                !titleAttrMatch[1].includes('ITEM.') &&
-                !titleAttrMatch[1].includes('JAVASCRIPT') &&
-                titleAttrMatch[1].trim().length > 0) {
-              title = titleAttrMatch[1];
+      try {
+        // 使用与 latest() 方法完全相同的解析逻辑
+        console.log("Parsing with correct MissAV structure...");
+        
+        // 基于实际MissAV结构：aspect-w-16 aspect-h-9 rounded容器
+        const containerPattern = /<div[^>]*class="[^"]*aspect-w-16[^"]*aspect-h-9[^"]*rounded[^"]*"[^>]*>([\s\S]*?)<\/div>/g;
+        
+        let match;
+        let videoCount = 0;
+        
+        while ((match = containerPattern.exec(res)) !== null && videoCount < 30) {
+          try {
+            const container = match[1];
+            
+            // 提取链接 - 过滤模板变量
+            const linkMatch = container.match(/<a[^>]*href="([^"]+)"[^>]*>/);
+            if (!linkMatch) continue;
+            const url = linkMatch[1];
+            
+            // 跳过包含模板变量的URL
+            if (url.includes('ITEM.') || url.includes('JAVASCRIPT') || url.includes('item.')) {
+              continue;
             }
-          }
-          
-          if (!title) {
-            const textMatches = container.match(/>([^<]{10,})</g);
-            if (textMatches) {
-              for (const textMatch of textMatches) {
-                const text = textMatch.replace(/^>|<$/g, '').trim();
-                if (text && 
-                    !text.includes('item.') && 
-                    !text.includes('ITEM.') &&
-                    !text.includes('JAVASCRIPT') &&
-                    !text.match(/^\d+:\d+$/) && 
-                    text.length > 5 && 
-                    text.length < 200) {
-                  title = text;
-                  break;
+            
+            // 提取标题 - 改进逻辑避免模板变量
+            let title = '';
+            const titleMatch = container.match(/<img[^>]*alt="([^"]*)"/); 
+            if (titleMatch && titleMatch[1] && 
+                !titleMatch[1].includes('item.') && 
+                !titleMatch[1].includes('ITEM.') &&
+                !titleMatch[1].includes('JAVASCRIPT') &&
+                titleMatch[1].trim().length > 0) {
+              title = titleMatch[1];
+            }
+            
+            // 如果没有有效标题，尝试从其他地方提取
+            if (!title) {
+              // 尝试从标题属性
+              const titleAttrMatch = container.match(/title="([^"]+)"/);
+              if (titleAttrMatch && 
+                  !titleAttrMatch[1].includes('item.') && 
+                  !titleAttrMatch[1].includes('ITEM.') &&
+                  !titleAttrMatch[1].includes('JAVASCRIPT') &&
+                  titleAttrMatch[1].trim().length > 0) {
+                title = titleAttrMatch[1];
+              }
+            }
+            
+            // 尝试从其他文本节点提取标题
+            if (!title) {
+              const textMatches = container.match(/>([^<]{10,})</g);
+              if (textMatches) {
+                for (const textMatch of textMatches) {
+                  const text = textMatch.replace(/^>|<$/g, '').trim();
+                  if (text && 
+                      !text.includes('item.') && 
+                      !text.includes('ITEM.') &&
+                      !text.includes('JAVASCRIPT') &&
+                      !text.match(/^\d+:\d+$/) && // 不是时长格式
+                      text.length > 5 && 
+                      text.length < 200) {
+                    title = text;
+                    break;
+                  }
                 }
               }
             }
-          }
-          
-          let cover = '';
-          let coverMatch = container.match(/<img[^>]*data-src="([^"]*)"/);
-          if (coverMatch) {
-            cover = coverMatch[1];
-          } else {
-            coverMatch = container.match(/<img[^>]*src="([^"]*)"/);
+            
+            // 提取封面 - 改进URL处理
+            let cover = '';
+            // 优先data-src
+            let coverMatch = container.match(/<img[^>]*data-src="([^"]*)"/);
             if (coverMatch) {
               cover = coverMatch[1];
+            } else {
+              // 备用src
+              coverMatch = container.match(/<img[^>]*src="([^"]*)"/);
+              if (coverMatch) {
+                cover = coverMatch[1];
+              }
             }
-          }
-          
-          if (cover && !cover.startsWith('http')) {
-            if (cover.startsWith('//')) {
-              cover = 'https:' + cover;
-            } else if (cover.startsWith('/')) {
-              cover = 'https://missav.ai' + cover;
+            
+            // 确保封面URL是完整的
+            if (cover && !cover.startsWith('http')) {
+              if (cover.startsWith('//')) {
+                cover = 'https:' + cover;
+              } else if (cover.startsWith('/')) {
+                cover = 'https://missav.ai' + cover;
+              }
             }
-          }
-          
-          const durationMatch = container.match(/>([0-9:]+)<\//);
-          const duration = durationMatch ? durationMatch[1] : "Unknown";
-          
-          if (!title && url) {
-            const urlParts = url.split('/');
-            const code = urlParts[urlParts.length - 1] || urlParts[urlParts.length - 2] || '';
-            if (code && code.length > 2) {
-              title = code.toUpperCase().replace(/-/g, ' ');
+            
+            // 提取时长
+            const durationMatch = container.match(/>([0-9:]+)<\//);
+            const duration = durationMatch ? durationMatch[1] : "Unknown";
+            
+            // 如果没有标题，从URL提取视频代码
+            if (!title && url) {
+              const urlParts = url.split('/');
+              const code = urlParts[urlParts.length - 1] || urlParts[urlParts.length - 2] || '';
+              if (code && code.length > 2) {
+                title = code.toUpperCase().replace(/-/g, ' ');
+              }
             }
+            
+            // 最后的备用标题
+            if (!title) {
+              title = 'Video ' + (videoCount + 1);
+            }
+            
+            if (url && title) {
+              videos.push({
+                title: title.trim(),
+                url: url,
+                cover: cover,
+                update: duration
+              });
+              videoCount++;
+              console.log(`Search found video ${videoCount}: ${title.trim()}`);
+            }
+            
+          } catch (containerError) {
+            console.log("Container parsing error:", containerError.message);
+            continue;
           }
-          
-          if (!title) {
-            title = 'Video ' + (videoCount + 1);
-          }
-          
-          if (url && title) {
-            videos.push({
-              title: title.trim(),
-              url: url,
-              cover: cover,
-              update: duration
-            });
-            videoCount++;
-            console.log(`Found video ${videoCount}: ${title.trim().substring(0, 50)}`);
-          }
-          
-        } catch (containerError) {
-          console.error("Container error:", containerError);
-          continue;
         }
-      }
 
-      console.log(`Found ${videos.length} search results`);
-      return videos;
+        console.log(`Search completed: ${videos.length} videos found`);
+        return videos;
+        
+      } catch (parseError) {
+        console.error("Search parsing error:", parseError);
+        return [];
+      }
 
     } catch (error) {
       console.error("Search error:", error);
