@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.0.2
+// @version      v0.0.3
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -154,41 +154,123 @@ export default class extends Extension {
         // 使用更简单的解析方法避免复杂正则导致的内存问题
         console.log("Parsing videos with safe method...");
         
-        // 先找到视频链接区域
-        const videoSectionMatch = res.match(/<div[^>]*class="[^"]*grid[^"]*"[^>]*>([\s\S]*?)<\/div>/);
-        if (videoSectionMatch) {
-          const videoSection = videoSectionMatch[1];
-          
+        // 尝试多种可能的视频区域模式
+        const videoSectionPatterns = [
+          // 基于missav实际结构
+          /<div[^>]*class="[^"]*grid[^"]*"[^>]*>([\s\S]*?)<\/div>/,
+          // 基于参考代码的结构
+          /<div[^>]*class="[^"]*video-grid[^"]*"[^>]*>([\s\S]*?)<\/div>/,
+          // 通用容器
+          /<main[^>]*>([\s\S]*?)<\/main>/,
+          // 更广泛的匹配
+          /<body[^>]*>([\s\S]*?)<\/body>/
+        ];
+        
+        let videoSection = null;
+        for (const pattern of videoSectionPatterns) {
+          const match = res.match(pattern);
+          if (match) {
+            videoSection = match[1];
+            console.log(`Found video section with pattern, length: ${videoSection.length}`);
+            break;
+          }
+        }
+        
+        if (videoSection) {
           // 分块处理，避免一次性匹配太多内容
           const chunks = [];
-          const chunkSize = 10000;
+          const chunkSize = 15000;
           for (let i = 0; i < videoSection.length; i += chunkSize) {
             chunks.push(videoSection.substring(i, i + chunkSize));
           }
           
-          for (const chunk of chunks) {
-            // 使用更简单的正则模式
-            const linkPattern = /<a[^>]*href="(\/[A-Z0-9][A-Z0-9-]*)"[^>]*>/g;
-            let match;
-            let processedCount = 0;
+          console.log(`Processing ${chunks.length} chunks`);
+          
+          for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+            const chunk = chunks[chunkIndex];
+            console.log(`Processing chunk ${chunkIndex + 1}/${chunks.length}`);
             
-            while ((match = linkPattern.exec(chunk)) !== null && processedCount < 50) {
-              const url = match[1];
-              const code = url.replace(/^\//, '');
+            // 尝试多种链接模式
+            const linkPatterns = [
+              // 标准AV代码格式
+              /<a[^>]*href="(\/[A-Z]{2,8}-?\d{3,5}[^"]*)"[^>]*>/g,
+              // 更宽泛的模式
+              /<a[^>]*href="(\/[A-Z0-9][A-Z0-9-]{3,})"[^>]*>/g,
+              // 包含数字的模式
+              /<a[^>]*href="(\/[^"]*[A-Z]{2,}[^"]*\d+[^"]*)"[^>]*>/g,
+              // 最基本的模式
+              /<a[^>]*href="(\/[^\/\s"]{4,})"[^>]*>/g
+            ];
+            
+            for (let patternIndex = 0; patternIndex < linkPatterns.length; patternIndex++) {
+              const linkPattern = linkPatterns[patternIndex];
+              let match;
+              let processedCount = 0;
               
-              // 检查是否已经存在
-              if (!videos.some(v => v.url === url)) {
-                videos.push({
-                  title: code.replace(/-/g, ' '),
-                  url: url,
-                  cover: `https://pics.xjav.pro/cover/${code}_b.jpg`,
-                  update: "New"
-                });
-                processedCount++;
+              // 重置正则表达式索引
+              linkPattern.lastIndex = 0;
+              
+              while ((match = linkPattern.exec(chunk)) !== null && processedCount < 20) {
+                const url = match[1];
+                const code = url.replace(/^\//, '');
+                
+                // 过滤掉明显不是视频的链接
+                if (code.length < 4 || 
+                    code.includes('search') || 
+                    code.includes('page') ||
+                    code.includes('category') ||
+                    code.includes('tag') ||
+                    code.includes('actress') ||
+                    code.includes('studio')) {
+                  continue;
+                }
+                
+                // 检查是否已经存在
+                if (!videos.some(v => v.url === url)) {
+                  const title = code.toUpperCase().replace(/-/g, ' ');
+                  videos.push({
+                    title: title,
+                    url: url,
+                    cover: `https://pics.xjav.pro/cover/${code}_b.jpg`,
+                    update: "New"
+                  });
+                  processedCount++;
+                  console.log(`Found video: ${title} -> ${url}`);
+                }
+              }
+              
+              if (videos.length > 0) {
+                console.log(`Pattern ${patternIndex + 1} found ${videos.length} videos so far`);
+                break; // 找到视频就跳出模式循环
               }
             }
             
-            if (videos.length >= 20) break; // 限制数量避免内存问题
+            if (videos.length >= 15) break; // 限制数量避免内存问题
+          }
+        } else {
+          console.log("No video section found, trying direct search on full content");
+          
+          // 如果找不到视频区域，直接在整个内容中搜索
+          const directPattern = /<a[^>]*href="(\/[A-Z]{2,8}-?\d{3,5}[^"]*)"[^>]*>/g;
+          let match;
+          let attempts = 0;
+          
+          while ((match = directPattern.exec(res)) !== null && attempts < 100) {
+            const url = match[1];
+            const code = url.replace(/^\//, '');
+            
+            if (!videos.some(v => v.url === url)) {
+              videos.push({
+                title: code.toUpperCase().replace(/-/g, ' '),
+                url: url,
+                cover: `https://pics.xjav.pro/cover/${code}_b.jpg`,
+                update: "Direct"
+              });
+              console.log(`Direct found: ${code}`);
+            }
+            attempts++;
+            
+            if (videos.length >= 10) break;
           }
         }
         
