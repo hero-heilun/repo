@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         JAVHD.icu
-// @version      v0.0.2
+// @version      v0.0.3
 // @author       bachig26
 // @lang         jp
 // @license      MIT
@@ -56,20 +56,50 @@ export default class extends Extension {
 
     const title = await this.querySelector(res, "h1").text;
     const cover = await this.querySelector(res, "meta[property='og:image']").getAttributeText("content");
-    const desc = await this.querySelector(res, "div.post-entry > p").text;
-
-    const urlPatterns = [
-        /https:\/\/emturbovid\.[^\s'"]+/,
-        /https:\/\/turbovidhls\.[^\s'"]+/
-    ];
+    // Try multiple ways to get description
+    let desc = "";
+    
+    // First try meta description
+    const metaDescMatch = res.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["'][^>]*>/i);
+    if (metaDescMatch) {
+        desc = metaDescMatch[1];
+    } else {
+        // Fallback to post-entry
+        const descElement = await this.querySelector(res, "div.post-entry > p");
+        desc = descElement.text || "";
+    }
 
     let episodeUrl = "";
 
-    for (const pattern of urlPatterns) {
-        const match = res.match(pattern);
-        if (match) {
-            episodeUrl = match[0];
-            break;
+    // Look for iframe sources first
+    const iframeMatches = res.match(/<iframe[^>]*src=["']([^"']+)["'][^>]*>/gi);
+    if (iframeMatches) {
+        for (const iframe of iframeMatches) {
+            const srcMatch = iframe.match(/src=["']([^"']+)["']/i);
+            if (srcMatch) {
+                const src = srcMatch[1];
+                // Check if it's a video hosting URL
+                if (src.includes('turbovid') || src.includes('emturbovid')) {
+                    episodeUrl = src;
+                    break;
+                }
+            }
+        }
+    }
+
+    // If no iframe found, try the old method with URL patterns
+    if (!episodeUrl) {
+        const urlPatterns = [
+            /https:\/\/emturbovid\.[^\s'"]+/,
+            /https:\/\/turbovidhls\.[^\s'"]+/
+        ];
+
+        for (const pattern of urlPatterns) {
+            const match = res.match(pattern);
+            if (match) {
+                episodeUrl = match[0];
+                break;
+            }
         }
     }
     
