@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.2.3
+// @version      v0.2.4
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -331,10 +331,9 @@ export default class extends Extension {
       console.log("=== MISSAV SEARCH METHOD START v2.2 ===");
       console.log("Search keyword:", keyword, "page:", page);
       
-      // 由于搜索页面使用 AlpineJS 动态内容，我们使用首页的结构来获取视频
-      // 这样可以确保解析逻辑与 latest() 方法一致
-      const url = page === 1 ? "" : `?page=${page}`;
-      console.log("Search URL (using latest structure):", url);
+      // 使用正确的搜索URL
+      const url = `/search/${encodeURIComponent(keyword)}?page=${page}`;
+      console.log("Search URL:", url);
 
       // 使用与 latest() 方法相同的请求逻辑，强制绕过缓存
       let res = await this.request(url, {
@@ -380,10 +379,30 @@ export default class extends Extension {
       }
 
       try {
-        // 使用与 latest() 方法完全相同的解析逻辑
-        console.log("Parsing with correct MissAV structure...");
+        // 搜索页面使用不同的解析策略
+        console.log("Parsing search page...");
         
-        // 基于实际MissAV结构：aspect-w-16 aspect-h-9 rounded容器
+        // 首先尝试寻找window.searchQuery或相关的JavaScript变量
+        const scriptMatches = [...res.matchAll(/<script[^>]*>(.*?)<\/script>/gs)];
+        let searchData = null;
+        
+        for (const scriptMatch of scriptMatches) {
+          const scriptContent = scriptMatch[1];
+          
+          // 查找可能的搜索数据
+          if (scriptContent.includes('window.searchQuery')) {
+            console.log("Found search query script");
+            
+            // 尝试提取搜索查询
+            const queryMatch = scriptContent.match(/window\.searchQuery\s*=\s*['"]([^'"]+)['"]/);
+            if (queryMatch) {
+              console.log("Search query found:", queryMatch[1]);
+            }
+          }
+        }
+        
+        // 如果没有找到动态数据，尝试解析静态容器
+        console.log("Trying to parse static containers...");
         const containerPattern = /<div[^>]*class="[^"]*aspect-w-16[^"]*aspect-h-9[^"]*rounded[^"]*"[^>]*>([\s\S]*?)<\/div>/g;
         
         let match;
@@ -506,6 +525,14 @@ export default class extends Extension {
         }
 
         console.log(`Search completed: ${videos.length} videos found`);
+        
+        // 如果搜索没有结果，提供说明
+        if (videos.length === 0) {
+          console.log("No search results found. Search page may use dynamic content that cannot be parsed.");
+          console.log("Suggestion: Try using latest() method for browsing content.");
+          return [];
+        }
+        
         return videos;
         
       } catch (parseError) {
