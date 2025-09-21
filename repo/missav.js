@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.0.1
+// @version      v0.0.2
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -329,15 +329,21 @@ export default class extends Extension {
         }
       });
 
+      console.log("Type of res after initial request:", typeof res);
+      console.log("Res content after initial request (first 500 chars):", String(res).substring(0, 500));
 
       // 检查是否遇到Cloudflare保护
-        if (res.includes('Just a moment...') || res.includes('cloudflare')) {
+        if (String(res).includes('Just a moment...') || String(res).includes('cloudflare')) {
           console.log("Cloudflare detected, trying alternative approach...");
           const alternativeRes = await this.handleCloudflare(url);
+          console.log("Type of alternativeRes:", typeof alternativeRes);
+          console.log("AlternativeRes content (first 500 chars):", String(alternativeRes).substring(0, 500));
           if (alternativeRes) {
             res = alternativeRes;
           }
         }
+      console.log("Type of res after Cloudflare check:", typeof res);
+      console.log("Res content after Cloudflare check (first 500 chars):", String(res).substring(0, 500));
 
       console.log("Full HTML response:", res);
       console.log("Search response length:", res.length);
