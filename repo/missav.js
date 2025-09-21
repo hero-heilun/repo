@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.0.9
+// @version      v0.1.0
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -438,56 +438,61 @@ export default class extends Extension {
       const htmlPreview = res.substring(0, 2000);
       console.log("HTML preview (first 2000 chars):", htmlPreview);
 
-      // Extract title - 多种模式尝试
+      // 基于MissAV-API项目的正确解析方法：使用Open Graph meta标签
       let title = "";
+      let cover = "";
+      let desc = "";
       
-      // 模式1: 标准h1标签
-      let titleMatch = res.match(/<h1[^>]*class="[^"]*text-base[^"]*"[^>]*>([^<]+)<\/h1>/);
-      if (!titleMatch) {
-        titleMatch = res.match(/<h1[^>]*>([^<]+)<\/h1>/);
+      console.log("Extracting data using Open Graph meta tags...");
+      
+      // 提取Open Graph meta信息
+      const ogTitleMatch = res.match(/<meta[^>]*property="og:title"[^>]*content="([^"]+)"/);
+      if (ogTitleMatch) {
+        title = ogTitleMatch[1].trim();
+        console.log("Found og:title:", title);
       }
-      if (!titleMatch) {
-        // 模式2: 页面标题
-        titleMatch = res.match(/<title>([^<]+)<\/title>/);
+      
+      const ogImageMatch = res.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/);
+      if (ogImageMatch) {
+        cover = ogImageMatch[1].trim();
+        console.log("Found og:image:", cover);
+      }
+      
+      const ogDescMatch = res.match(/<meta[^>]*property="og:description"[^>]*content="([^"]+)"/);
+      if (ogDescMatch) {
+        desc = ogDescMatch[1].trim();
+        console.log("Found og:description:", desc);
+      }
+      
+      // 备用方法：从页面标题提取
+      if (!title) {
+        const titleMatch = res.match(/<title>([^<]+)<\/title>/);
         if (titleMatch) {
           title = titleMatch[1].replace(/ - .*$/, "").replace(/^MissAV \| /, "").trim();
+          console.log("Fallback title from <title>:", title);
         }
-      } else {
-        title = titleMatch[1].trim();
       }
-
-      // Extract cover image - 多种模式
-      let cover = "";
       
-      // 模式1: video-cover类
-      let coverMatch = res.match(/<img[^>]*class="[^"]*video-cover[^"]*"[^>]*(?:data-src|src)="([^"]+)"/);
-      if (!coverMatch) {
-        // 模式2: 更通用的img标签查找
-        coverMatch = res.match(/<img[^>]*(?:data-src|src)="([^"]*cover[^"]*\.jpg)"/);
-      }
-      if (!coverMatch) {
-        // 模式3: 从link rel preconnect查找封面
-        coverMatch = res.match(/<link[^>]*href="([^"]*cover[^"]*\.jpg)"[^>]*rel="preconnect"/);
-      }
-      if (coverMatch) {
-        cover = coverMatch[1];
-        // 确保封面URL完整
-        if (cover && !cover.startsWith('http')) {
-          if (cover.startsWith('//')) {
-            cover = 'https:' + cover;
-          } else if (cover.startsWith('/')) {
-            cover = 'https://missav.ai' + cover;
-          }
+      // 备用方法：从link preconnect提取封面
+      if (!cover) {
+        const linkCoverMatch = res.match(/<link[^>]*href="([^"]*cover[^"]*\.jpg)"[^>]*rel="preconnect"/);
+        if (linkCoverMatch) {
+          cover = linkCoverMatch[1];
+          console.log("Fallback cover from link:", cover);
         }
       }
-
-      // Extract description/duration info
-      let desc = "";
-      const descMatch = res.match(/<div[^>]*class="[^"]*text-secondary[^"]*"[^>]*>([^<]+)<\/div>/);
-      if (descMatch) {
-        desc = descMatch[1].trim();
-      } else {
-        // 备用：查找时长信息
+      
+      // 确保封面URL完整
+      if (cover && !cover.startsWith('http')) {
+        if (cover.startsWith('//')) {
+          cover = 'https:' + cover;
+        } else if (cover.startsWith('/')) {
+          cover = 'https://missav.ai' + cover;
+        }
+      }
+      
+      // 额外信息提取：视频时长等
+      if (!desc) {
         const durationMatch = res.match(/(\d{1,2}:\d{2}:\d{2}|\d{1,2}:\d{2})/);
         if (durationMatch) {
           desc = `时长: ${durationMatch[1]}`;
