@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.1.0
+// @version      v0.1.1
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -352,21 +352,18 @@ export default class extends Extension {
 
   async detail(url) {
     try {
-      console.log("=== MISSAV DETAIL METHOD START v1.2 ===");
-      console.log("Arguments received:", arguments.length);
-      console.log("First argument:", arguments[0]);
-      console.log("URL parameter:", JSON.stringify(url));
+      console.log("=== MISSAV DETAIL METHOD START v1.5 ===");
+      console.log("Detail method called with URL:", url);
       console.log("URL type:", typeof url);
-      console.log("URL length:", url ? url.length : 'null/undefined');
-      console.log("URL raw value:", url);
-
-      // Handle URL encoding and format issues
+      
+      // 简化参数处理，像bfzy.tv.js一样直接使用url参数
       let cleanUrl = url;
+      
+      console.log("=== URL PROCESSING ===");
       
       // 检查URL参数
       if (!url || url.length === 0 || url === 'undefined' || url === 'null') {
         console.log("⚠️ Empty/invalid URL detected, using test URL for debugging");
-        console.log("Using hardcoded test URL: /mbrbn-059");
         cleanUrl = "/mbrbn-059";
       } else if (url && typeof url === 'string') {
         console.log("Processing URL:", url);
