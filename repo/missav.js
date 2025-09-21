@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.0.3
+// @version      v0.0.4
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -331,28 +331,31 @@ export default class extends Extension {
                    "Upgrade-Insecure-Requests": "1"
           }
         });
-        console.log("Type of res after initial request (successful):", typeof res);
-        console.log("Res content after initial request (first 500 chars):", String(res).substring(0, 500));
+        console.log("res value after initial request:", res);
+        if (res === null || typeof res === 'undefined') {
+          console.log("res is null or undefined after initial request.");
+        }
       } catch (error) {
         console.log("Initial request failed, likely Cloudflare. Error:", error.message);
-        // If initial request fails, try Cloudflare bypass
         const alternativeRes = await this.handleCloudflare(url);
-        console.log("Type of alternativeRes:", typeof alternativeRes);
-        console.log("AlternativeRes content (first 500 chars):", String(alternativeRes).substring(0, 500));
+        console.log("alternativeRes value:", alternativeRes);
+        if (alternativeRes === null || typeof alternativeRes === 'undefined') {
+          console.log("alternativeRes is null or undefined.");
+        }
         if (alternativeRes) {
           res = alternativeRes;
         } else {
-          // If Cloudflare bypass also fails, rethrow or handle appropriately
           throw new Error("Failed to get content after Cloudflare bypass attempt.");
         }
       }
 
-      // Now 'res' should contain the HTML, either from initial request or Cloudflare bypass
-      console.log("Type of res after Cloudflare check (final):", typeof res);
-      console.log("Res content after Cloudflare check (final, first 500 chars):", String(res).substring(0, 500));
+      console.log("res value after Cloudflare check:", res);
+      if (res === null || typeof res === 'undefined') {
+        console.log("res is null or undefined after Cloudflare check.");
+      }
 
       console.log("Full HTML response:", res);
-      console.log("Search response length:", res.length);
+      console.log("Search response length:", res ? res.length : 'res is null/undefined');
 
       const videos = [];
       
