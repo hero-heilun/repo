@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.0.4
+// @version      v0.0.5
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -149,22 +149,61 @@ export default class extends Extension {
             if (!linkMatch) continue;
             const url = linkMatch[1];
             
-            // 提取标题(从img alt属性)
+            // 提取标题 - 改进逻辑避免模板变量
+            let title = '';
             const titleMatch = container.match(/<img[^>]*alt="([^"]*)"/); 
-            let title = titleMatch ? titleMatch[1] : '';
+            if (titleMatch && titleMatch[1] && !titleMatch[1].includes('item.')) {
+              title = titleMatch[1];
+            }
             
-            // 提取封面(优先data-src，然后src)
-            let coverMatch = container.match(/<img[^>]*(?:data-src|src)="([^"]*)"/); 
-            let cover = coverMatch ? coverMatch[1] : '';
+            // 如果没有有效标题，尝试从其他地方提取
+            if (!title) {
+              // 尝试从标题属性
+              const titleAttrMatch = container.match(/title="([^"]+)"/);
+              if (titleAttrMatch && !titleAttrMatch[1].includes('item.')) {
+                title = titleAttrMatch[1];
+              }
+            }
+            
+            // 提取封面 - 改进URL处理
+            let cover = '';
+            // 优先data-src
+            let coverMatch = container.match(/<img[^>]*data-src="([^"]*)"/);
+            if (coverMatch) {
+              cover = coverMatch[1];
+            } else {
+              // 备用src
+              coverMatch = container.match(/<img[^>]*src="([^"]*)"/);
+              if (coverMatch) {
+                cover = coverMatch[1];
+              }
+            }
+            
+            // 确保封面URL是完整的
+            if (cover && !cover.startsWith('http')) {
+              if (cover.startsWith('//')) {
+                cover = 'https:' + cover;
+              } else if (cover.startsWith('/')) {
+                cover = 'https://missav.ai' + cover;
+              }
+            }
             
             // 提取时长
             const durationMatch = container.match(/>([0-9:]+)<\//);
             const duration = durationMatch ? durationMatch[1] : "Unknown";
             
-            // 如果没有标题，从URL提取
+            // 如果没有标题，从URL提取视频代码
             if (!title && url) {
               const urlParts = url.split('/');
-              title = urlParts[urlParts.length - 1] || urlParts[urlParts.length - 2] || '';
+              const code = urlParts[urlParts.length - 1] || urlParts[urlParts.length - 2] || '';
+              if (code && code.length > 2) {
+                title = code.toUpperCase().replace(/-/g, ' ');
+              }
+            }
+            
+            // 最后的备用标题
+            if (!title) {
+              title = 'Video ' + (videoCount + 1);
             }
             
             if (url && title) {
