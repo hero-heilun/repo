@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         JAVHD.icu
-// @version      v0.0.3
+// @version      v0.0.4
 // @author       bachig26
 // @lang         jp
 // @license      MIT
@@ -66,7 +66,9 @@ export default class extends Extension {
     } else {
         // Fallback to post-entry
         const descElement = await this.querySelector(res, "div.post-entry > p");
-        desc = descElement.text || "";
+        if (descElement && typeof descElement.text === 'string') {
+            desc = descElement.text;
+        }
     }
 
     let episodeUrl = "";
