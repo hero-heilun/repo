@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         HKDoll
-// @version      v0.0.1
+// @version      v0.0.2
 // @author       YourName
 // @lang         zh-cn
 // @license      MIT
