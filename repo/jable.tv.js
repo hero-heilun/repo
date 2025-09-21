@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         Jable
-// @version      v0.0.2
+// @version      v0.0.3
 // @author       YourName
 // @lang         zh-cn
 // @license      MIT
@@ -18,24 +18,16 @@ export default class extends Extension {
         headers: { "Accept-Encoding": "identity" },
     });
 
-    const videoItems = res.match(/<div class="card-video">[\s\S]+?<\/div>[\s\S]+?<\/div>/g);
-    if (!videoItems) {
-      return [];
-    }
-
+    const regex = /<a href="(\/videos\/[^\"]+)"[^>]*>[\s\S]+?<img[^>]+src="([^\"]+)"[\s\S]+?<h6 class="title">([^<]+)<\/h6>/g;
+    const matches = [...res.matchAll(regex)];
+    
     const novel = [];
-    for (const item of videoItems) {
-      const urlMatch = item.match(/<a href="([^"]+)"/);
-      const titleMatch = item.match(/<h6 class="title">([^<]+)<\/h6>/);
-      const coverMatch = item.match(/<img[^>]+src="([^"]+)"/);
-
-      if (urlMatch && titleMatch && coverMatch) {
+    for (const match of matches) {
         novel.push({
-          title: titleMatch[1].trim(),
-          url: urlMatch[1],
-          cover: coverMatch[1],
+          url: match[1],
+          cover: match[2],
+          title: match[3].trim(),
         });
-      }
     }
     return novel;
   }
@@ -46,24 +38,16 @@ export default class extends Extension {
         headers: { "Accept-Encoding": "identity" },
     });
 
-    const videoItems = res.match(/<div class="card-video">[\s\S]+?<\/div>[\s\S]+?<\/div>/g);
-    if (!videoItems) {
-      return [];
-    }
-
+    const regex = /<a href="(\/videos\/[^\"]+)"[^>]*>[\s\S]+?<img[^>]+src="([^\"]+)"[\s\S]+?<h6 class="title">([^<]+)<\/h6>/g;
+    const matches = [...res.matchAll(regex)];
+    
     const novel = [];
-    for (const item of videoItems) {
-      const urlMatch = item.match(/<a href="([^"]+)"/);
-      const titleMatch = item.match(/<h6 class="title">([^<]+)<\/h6>/);
-      const coverMatch = item.match(/<img[^>]+src="([^"]+)"/);
-
-      if (urlMatch && titleMatch && coverMatch) {
+    for (const match of matches) {
         novel.push({
-          title: titleMatch[1].trim(),
-          url: urlMatch[1],
-          cover: coverMatch[1],
+          url: match[1],
+          cover: match[2],
+          title: match[3].trim(),
         });
-      }
     }
     return novel;
   }
