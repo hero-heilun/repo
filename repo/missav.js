@@ -445,6 +445,17 @@ export default class extends Extension {
       const htmlPreview = res.substring(0, 2000);
       console.log("HTML preview (first 2000 chars):", htmlPreview);
 
+      // 搜索所有meta标签用于调试
+      const allMetaTags = res.match(/<meta[^>]+>/g);
+      if (allMetaTags) {
+        console.log("Found " + allMetaTags.length + " meta tags:");
+        for (let i = 0; i < Math.min(allMetaTags.length, 10); i++) {
+          console.log("Meta[" + i + "]: " + allMetaTags[i]);
+        }
+      } else {
+        console.log("No meta tags found!");
+      }
+
       // 基于MissAV-API项目的正确解析方法：使用Open Graph meta标签
       let title = "";
       let cover = "";
