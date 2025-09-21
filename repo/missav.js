@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.1.8
+// @version      v0.1.9
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -304,6 +304,9 @@ export default class extends Extension {
 
   async search(keyword, page = 1) {
     try {
+       if (!keyword) {
+          keyword = 'latest';
+      }
       console.log("=== MISSAV SEARCH METHOD START ===");
       console.log("Search keyword:", keyword, "page:", page);
 
