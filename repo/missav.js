@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.1.9
+// @version      v0.2.0
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -321,6 +321,16 @@ export default class extends Extension {
           "Accept-Encoding": "gzip, deflate, br"
         }
       });
+
+
+      // 检查是否遇到Cloudflare保护
+        if (res.includes('Just a moment...') || res.includes('cloudflare')) {
+          console.log("Cloudflare detected, trying alternative approach...");
+          const alternativeRes = await this.handleCloudflare(url);
+          if (alternativeRes) {
+            res = alternativeRes;
+          }
+        }
 
       console.log("Search response length:", res.length);
 
