@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         HKDoll
-// @version      v0.0.2
+// @version      v0.0.3
 // @author       YourName
 // @lang         zh-cn
 // @license      MIT
@@ -118,7 +118,7 @@ export default class extends Extension {
     // Extract video URL using the decoding logic from hkdoll.js
     let videoUrl = "";
     try {
-      const paramMatch = res.match(/var __PAGE_PARAMS__="([^"]+)"/);
+      const paramMatch = res.match(/var __PAGE__PARAMS__="([^"]+)"/);
       if (paramMatch) {
         videoUrl = this.decodeVideoUrl(paramMatch[1]);
       }
@@ -153,19 +153,41 @@ export default class extends Extension {
       // Decrypt config using XOR
       const pageConfig = JSON.parse(this.xorDec(encryptedConf, key));
       
-      // Extract necessary parameters
-      const id = pageConfig.player.param.id;
-      const embedURL = pageConfig.player.param.embedURL;
-      const timestamp = embedURL.substring(embedURL.lastIndexOf('/') + 1).slice(-10);
+      // Check if this site uses a different structure
+      if (pageConfig.player && pageConfig.player.embedUrl) {
+        // This site seems to provide the embed URL directly
+        const embedUrl = pageConfig.player.embedUrl;
+        console.log('Found embed URL:', embedUrl);
+        
+        // Try to extract video ID from the embed URL
+        const videoIdMatch = embedUrl.match(/\/embed\/([^\/]+)/);
+        if (videoIdMatch) {
+          const videoId = videoIdMatch[1];
+          console.log('Extracted video ID:', videoId);
+          
+          // The embed URL itself might be the video source or lead to it
+          // For now, return the embed URL as it might work with the iframe player
+          return embedUrl;
+        }
+      }
       
-      // Generate decryption key
-      const reverseKey = (id.toString() + '-' + timestamp.toString()).split('').reverse().join('');
-      const base64Key = this.base64Encode(reverseKey).replaceAll('=', '');
+      // Fallback to original method if available
+      if (pageConfig.player && pageConfig.player.param && pageConfig.player.param.id) {
+        const id = pageConfig.player.param.id;
+        const embedURL = pageConfig.player.param.embedURL;
+        const timestamp = embedURL.substring(embedURL.lastIndexOf('/') + 1).slice(-10);
+        
+        // Generate decryption key
+        const reverseKey = (id.toString() + '-' + timestamp.toString()).split('').reverse().join('');
+        const base64Key = this.base64Encode(reverseKey).replaceAll('=', '');
+        
+        // Decode final URL
+        const finalUrl = this.strDecode(pageConfig.player.param.arg, base64Key);
+        return finalUrl;
+      }
       
-      // Decode final URL
-      const finalUrl = this.strDecode(pageConfig.player.param.arg, base64Key);
-      
-      return finalUrl;
+      console.log('No suitable player configuration found');
+      return "";
     } catch (error) {
       console.error('Decode error:', error);
       return "";
@@ -211,8 +233,52 @@ export default class extends Extension {
   }
 
   async watch(url) {
+    // If the URL is an embed URL, we need to fetch it to get the actual video stream
+    if (url.includes('/embed/')) {
+      try {
+        const res = await this.request(url, {
+          headers: {
+            'User-Agent': this.UA,
+            'Accept-Encoding': 'identity'
+          },
+        });
+        
+        // Look for various video URL patterns in the embed page
+        const videoPatterns = [
+          /https?:\/\/[^'">\s]*\.m3u8[^'">\s]*/gi,
+          /https?:\/\/[^'">\s]*\.mp4[^'">\s]*/gi,
+          /"file"\s*:\s*"([^"]+)"/gi,
+          /"src"\s*:\s*"([^"]+\.(?:m3u8|mp4)[^"]*)"/gi,
+          /var\s+videoUrl\s*=\s*["']([^"']+)["']/gi,
+          /var\s+hlsUrl\s*=\s*["']([^"']+)["']/gi
+        ];
+        
+        for (const pattern of videoPatterns) {
+          const matches = [...res.matchAll(pattern)];
+          if (matches.length > 0) {
+            for (const match of matches) {
+              const videoUrl = match[1] || match[0];
+              // Skip data URIs and invalid URLs
+              if (videoUrl && !videoUrl.startsWith('data:') && videoUrl.includes('://')) {
+                console.log('Found video URL:', videoUrl);
+                return {
+                  type: videoUrl.includes('.m3u8') ? "hls" : "mp4",
+                  url: videoUrl,
+                };
+              }
+            }
+          }
+        }
+        
+        console.log('No direct video URL found in embed page, returning embed URL');
+      } catch (error) {
+        console.error('Failed to fetch embed page:', error);
+      }
+    }
+    
+    // Fallback: return the original URL
     return {
-      type: "hls",
+      type: url.includes('.m3u8') ? "hls" : (url.includes('/embed/') ? "iframe" : "mp4"),
       url: url,
     };
   }
