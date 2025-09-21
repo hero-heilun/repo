@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.2.2
+// @version      v0.2.3
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -85,18 +85,26 @@ export default class extends Extension {
       console.log("=== MISSAV LATEST METHOD START ===");
       console.log("Latest page request:", page);
       
-      const url = page === 1 ? "" : `?page=${page}`;
+      // 改进分页URL避免重定向问题
+      let url;
+      if (page === 1) {
+        url = "";
+      } else {
+        // 尝试使用不同的分页策略避免重复内容
+        url = `/?page=${page}`;
+      }
       console.log("Request URL:", url);
 
-      // 首次请求
+      // 首次请求，强制绕过缓存避免重复内容
       let res = await this.request(url, {
         headers: {
           "User-Agent": this.userAgent,
           "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
           "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
           "Accept-Encoding": "gzip, deflate",
-          "Cache-Control": "no-cache",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
           "Pragma": "no-cache",
+          "Expires": "0",
           "Sec-Fetch-Dest": "document",
           "Sec-Fetch-Mode": "navigate",
           "Sec-Fetch-Site": "none",
@@ -293,7 +301,19 @@ export default class extends Extension {
         }];
       }
 
-      console.log(`Found ${videos.length} videos in latest`);
+      console.log(`Found ${videos.length} videos in latest (page ${page})`);
+      
+      // 添加重复内容检测
+      if (page > 1 && videos.length > 0) {
+        const firstVideoTitle = videos[0].title;
+        console.log(`Page ${page} first video: ${firstVideoTitle}`);
+        
+        // 检查是否可能是重复内容（相同的第一个视频标题）
+        if (this.lastPageFirstVideo && this.lastPageFirstVideo === firstVideoTitle) {
+          console.log(`⚠️ Warning: Page ${page} may contain duplicate content from previous page`);
+        }
+        this.lastPageFirstVideo = firstVideoTitle;
+      }
       return videos;
 
     } catch (error) {
@@ -316,15 +336,16 @@ export default class extends Extension {
       const url = page === 1 ? "" : `?page=${page}`;
       console.log("Search URL (using latest structure):", url);
 
-      // 使用与 latest() 方法相同的请求逻辑
+      // 使用与 latest() 方法相同的请求逻辑，强制绕过缓存
       let res = await this.request(url, {
         headers: {
           "User-Agent": this.userAgent,
           "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
           "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
           "Accept-Encoding": "gzip, deflate",
-          "Cache-Control": "no-cache",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
           "Pragma": "no-cache",
+          "Expires": "0",
           "Sec-Fetch-Dest": "document",
           "Sec-Fetch-Mode": "navigate",
           "Sec-Fetch-Site": "none",
