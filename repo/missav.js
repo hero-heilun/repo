@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.0.7
+// @version      v0.0.8
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -352,8 +352,8 @@ export default class extends Extension {
       const videos = [];
       
       // 使用相同的卡片解析逻辑
-      const cardPattern = /<div[^>]*class="[^"]*thumbnail[^"]*"[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"[^>]*>[\s\S]*?<div[^>]*class="[^"]*text-secondary[^"]*"[^>]*>([^<]+)<\/div>[\s\S]*?<h5[^>]*>([^<]+)<\/h5>/g;
-      
+      const cardPattern = /<div[^>]*class="[^"]*aspect-w-16[^"]*aspect-h-9[^"]*rounded[^"]*"[^>]*>([\s\S]*?)<\/div>/g;
+
       let match;
       while ((match = cardPattern.exec(res)) !== null) {
         const [, url, cover, duration, title] = match;
