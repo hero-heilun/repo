@@ -13,7 +13,11 @@
 
 export default class extends Extension {
   async latest(page) {
-    const res = await this.request("/page/${page}/");
+    const res = await this.request(`/page/${page}/`, {
+      headers: {
+        'Accept-Encoding': 'identity',
+      },
+    });
     const bsxList = await this.querySelectorAll(res, "div.col-xl-3.col-lg-3.col-md-6.col-6");
     const novel = [];
     for (const element of bsxList) {
@@ -52,7 +56,11 @@ export default class extends Extension {
   }
 
   async detail(url) {
-    const res = await this.request(url);
+    const res = await this.request(url, {
+      headers: {
+        'Accept-Encoding': 'identity',
+      },
+    });
 
     const title = await this.querySelector(res, "h1").text;
     const cover = await this.querySelector(res, "meta[property='og:image']").getAttributeText("content");
