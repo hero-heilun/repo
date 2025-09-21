@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         HKDoll
-// @version      v0.0.3
+// @version      v0.0.4
 // @author       YourName
 // @lang         zh-cn
 // @license      MIT
@@ -115,15 +115,54 @@ export default class extends Extension {
     const descMatch = res.match(/<meta name="description" content="([^"]+)"/);
     const desc = descMatch ? descMatch[1].trim() : "";
 
-    // Extract video URL using the decoding logic from hkdoll.js
+    // Extract video URL - focus on finding direct streams
     let videoUrl = "";
-    try {
-      const paramMatch = res.match(/var __PAGE__PARAMS__="([^"]+)"/);
-      if (paramMatch) {
-        videoUrl = this.decodeVideoUrl(paramMatch[1]);
+    
+    // Method 1: Look for direct video URLs in the page first
+    const directVideoPatterns = [
+      /var\s+hlsUrl\s*=\s*["']([^"']+\.m3u8[^"']*)["']/gi,
+      /var\s+videoUrl\s*=\s*["']([^"']+\.(?:m3u8|mp4)[^"']*)["']/gi,
+      /"file"\s*:\s*"([^"]+\.(?:m3u8|mp4)[^"]+)"/gi,
+      /https?:\/\/[^'">\s]*\.m3u8[^'">\s]*/gi,
+      /src\s*:\s*["']([^"']+\.(?:m3u8|mp4)[^"']*)["']/gi
+    ];
+    
+    for (const pattern of directVideoPatterns) {
+      const matches = [...res.matchAll(pattern)];
+      if (matches.length > 0) {
+        const directUrl = matches[0][1] || matches[0][0];
+        if (directUrl && directUrl.includes('://')) {
+          console.log('Found direct video URL:', directUrl);
+          videoUrl = directUrl;
+          break;
+        }
       }
-    } catch (error) {
-      console.error('Failed to decode video URL:', error);
+    }
+    
+    // Method 2: Try to decode __PAGE__PARAMS__ only if no direct URL found
+    if (!videoUrl) {
+      try {
+        const paramMatch = res.match(/var __PAGE__PARAMS__="([^"]+)"/);
+        if (paramMatch) {
+          const decodedUrl = this.decodeVideoUrl(paramMatch[1]);
+          if (decodedUrl && !decodedUrl.includes('/embed/')) {
+            videoUrl = decodedUrl;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to decode __PAGE__PARAMS__:', error);
+      }
+    }
+    
+    // Method 3: If still no URL, use current page URL as fallback
+    if (!videoUrl) {
+      const videoIdMatch = url.match(/\/video\/([^\/\.]+)/);
+      if (videoIdMatch) {
+        const videoId = videoIdMatch[1];
+        console.log('No direct URL found, using video page as fallback:', url);
+        // Return a special identifier to indicate this needs browser handling
+        videoUrl = `browser:${url}`;
+      }
     }
 
     return {
@@ -233,53 +272,81 @@ export default class extends Extension {
   }
 
   async watch(url) {
-    // If the URL is an embed URL, we need to fetch it to get the actual video stream
+    console.log('Watch method called with URL:', url);
+    
+    // Handle browser-prefixed URLs (these need special handling by Miru)
+    if (url.startsWith('browser:')) {
+      const actualUrl = url.substring(8); // Remove 'browser:' prefix
+      console.log('Browser URL detected, returning for web view:', actualUrl);
+      return {
+        type: "hls",
+        url: actualUrl,
+        // Add a flag to indicate this should be opened in browser
+        headers: {
+          'User-Agent': this.UA
+        }
+      };
+    }
+    
+    // Handle embed URLs by converting them back to video page URLs
     if (url.includes('/embed/')) {
-      try {
-        const res = await this.request(url, {
-          headers: {
-            'User-Agent': this.UA,
-            'Accept-Encoding': 'identity'
-          },
-        });
+      const videoIdMatch = url.match(/\/embed\/([^\/\?]+)/);
+      if (videoIdMatch) {
+        const videoId = videoIdMatch[1];
+        const videoPageUrl = `https://hongkongdollvideo.com/video/${videoId}.html`;
+        console.log('Converting embed URL to video page:', videoPageUrl);
         
-        // Look for various video URL patterns in the embed page
-        const videoPatterns = [
-          /https?:\/\/[^'">\s]*\.m3u8[^'">\s]*/gi,
-          /https?:\/\/[^'">\s]*\.mp4[^'">\s]*/gi,
-          /"file"\s*:\s*"([^"]+)"/gi,
-          /"src"\s*:\s*"([^"]+\.(?:m3u8|mp4)[^"]*)"/gi,
-          /var\s+videoUrl\s*=\s*["']([^"']+)["']/gi,
-          /var\s+hlsUrl\s*=\s*["']([^"']+)["']/gi
-        ];
-        
-        for (const pattern of videoPatterns) {
-          const matches = [...res.matchAll(pattern)];
-          if (matches.length > 0) {
-            for (const match of matches) {
-              const videoUrl = match[1] || match[0];
-              // Skip data URIs and invalid URLs
-              if (videoUrl && !videoUrl.startsWith('data:') && videoUrl.includes('://')) {
-                console.log('Found video URL:', videoUrl);
-                return {
-                  type: videoUrl.includes('.m3u8') ? "hls" : "mp4",
-                  url: videoUrl,
-                };
-              }
-            }
+        // Try to get the actual video details again
+        try {
+          const details = await this.detail(videoPageUrl);
+          if (details.episodes?.[0]?.urls?.[0]?.url && 
+              !details.episodes[0].urls[0].url.includes('/embed/')) {
+            return await this.watch(details.episodes[0].urls[0].url);
           }
+        } catch (error) {
+          console.log('Failed to re-fetch details:', error.message);
         }
         
-        console.log('No direct video URL found in embed page, returning embed URL');
-      } catch (error) {
-        console.error('Failed to fetch embed page:', error);
+        // Fallback to returning the video page URL
+        return {
+          type: "hls",
+          url: videoPageUrl,
+          headers: {
+            'User-Agent': this.UA
+          }
+        };
       }
     }
     
-    // Fallback: return the original URL
+    // For direct video URLs
+    if (url.includes('.m3u8')) {
+      return {
+        type: "hls",
+        url: url,
+        headers: {
+          'User-Agent': this.UA
+        }
+      };
+    }
+    
+    if (url.includes('.mp4')) {
+      return {
+        type: "mp4",
+        url: url,
+        headers: {
+          'User-Agent': this.UA
+        }
+      };
+    }
+    
+    // For any other URL, assume it's a video page that needs browser handling
+    console.log('Unknown URL type, returning for browser handling:', url);
     return {
-      type: url.includes('.m3u8') ? "hls" : (url.includes('/embed/') ? "iframe" : "mp4"),
+      type: "hls",
       url: url,
+      headers: {
+        'User-Agent': this.UA
+      }
     };
   }
 }
