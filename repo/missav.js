@@ -352,54 +352,60 @@ export default class extends Extension {
 
   async detail(url) {
     try {
-      console.log("=== MISSAV DETAIL METHOD START v1.5 ===");
-      console.log("Detail method called with URL:", url);
+      console.log("=== MISSAV DETAIL METHOD START v1.7 ===");
+      console.log("Detail method received arguments:", arguments.length);
+      for (let i = 0; i < arguments.length; i++) {
+        console.log(`Argument ${i}:`, arguments[i], `(type: ${typeof arguments[i]})`);
+      }
+      console.log("Parameter 'url':", url);
       console.log("URL type:", typeof url);
       
-      // 简化参数处理，像bfzy.tv.js一样直接使用url参数
-      let cleanUrl = url;
+      // 像bfzy.tv.js一样直接使用第一个参数
+      const id = arguments[0] || url;
+      console.log("Using parameter:", id);
+      let cleanUrl = id;
       
       console.log("=== URL PROCESSING ===");
       
       // 检查URL参数
-      if (!url || url.length === 0 || url === 'undefined' || url === 'null') {
+      if (!id || id.length === 0 || id === 'undefined' || id === 'null') {
         console.log("⚠️ Empty/invalid URL detected, using test URL for debugging");
         cleanUrl = "/mbrbn-059";
-      } else if (url && typeof url === 'string') {
-        console.log("Processing URL:", url);
+      } else if (id && typeof id === 'string') {
+        console.log("Processing URL:", id);
         
         // 如果是完整URL，手动提取路径部分
-        if (url.startsWith('https://missav.ai')) {
+        if (id.startsWith('https://missav.ai')) {
           // 手动解析 https://missav.ai/path 格式
-          const pathStart = url.indexOf('/', 8); // 跳过 https://
+          const pathStart = id.indexOf('/', 8); // 跳过 https://
           if (pathStart !== -1) {
-            cleanUrl = url.substring(pathStart);
+            cleanUrl = id.substring(pathStart);
           } else {
             cleanUrl = '/';
           }
           console.log("Extracted path from full URL:", cleanUrl);
-        } else if (url.startsWith('http')) {
+        } else if (id.startsWith('http')) {
           // 其他域名的完整URL，手动提取路径
           try {
-            const protocolEnd = url.indexOf('://');
+            const protocolEnd = id.indexOf('://');
             if (protocolEnd !== -1) {
-              const pathStart = url.indexOf('/', protocolEnd + 3);
+              const pathStart = id.indexOf('/', protocolEnd + 3);
               if (pathStart !== -1) {
-                cleanUrl = url.substring(pathStart);
+                cleanUrl = id.substring(pathStart);
               } else {
                 cleanUrl = '/';
               }
             } else {
-              cleanUrl = url;
+              cleanUrl = id;
             }
             console.log("Extracted path from URL:", cleanUrl);
           } catch (e) {
             console.log("URL parsing failed, using as-is:", e);
-            cleanUrl = url;
+            cleanUrl = id;
           }
         } else {
           // 已经是路径格式，直接使用
-          cleanUrl = url;
+          cleanUrl = id;
         }
         
         // 解码URL编码
