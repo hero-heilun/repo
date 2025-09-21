@@ -439,11 +439,21 @@ export default class extends Extension {
         }
       });
 
-      console.log("Detail response length:", res.length);
+      console.log("Detail response length: " + res.length);
       
       // 调试：显示HTML片段
       const htmlPreview = res.substring(0, 2000);
-      console.log("HTML preview (first 2000 chars):", htmlPreview);
+      console.log("HTML preview (first 2000 chars): '" + htmlPreview + "'");
+      
+      // 检查是否是Cloudflare页面
+      if (res.includes('cloudflare') || res.includes('Just a moment') || res.includes('checking your browser')) {
+        console.log("⚠️ Cloudflare protection page detected!");
+      }
+      
+      // 检查是否是错误页面
+      if (res.includes('404') || res.includes('not found') || res.includes('error')) {
+        console.log("⚠️ Error page detected!");
+      }
 
       // 搜索所有meta标签用于调试
       const allMetaTags = res.match(/<meta[^>]+>/g);
