@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         Jable
-// @version      v0.0.3
+// @version      v0.0.4
 // @author       YourName
 // @lang         zh-cn
 // @license      MIT
@@ -18,13 +18,18 @@ export default class extends Extension {
         headers: { "Accept-Encoding": "identity" },
     });
 
-    const regex = /<a href="(\/videos\/[^\"]+)"[^>]*>[\s\S]+?<img[^>]+src="([^\"]+)"[\s\S]+?<h6 class="title">([^<]+)<\/h6>/g;
+    const regex = /<a href="([^"]*\/videos\/[^"]+)"[\s\S]*?data-src="([^"]+)"[\s\S]*?<h6 class="title"><a[^>]*>([^<]+)<\/a><\/h6>/g;
     const matches = [...res.matchAll(regex)];
     
     const novel = [];
     for (const match of matches) {
+        let url = match[1];
+        // Convert full URL to relative path if needed
+        if (url.startsWith('https://jable.tv')) {
+          url = url.replace('https://jable.tv', '');
+        }
         novel.push({
-          url: match[1],
+          url: url,
           cover: match[2],
           title: match[3].trim(),
         });
@@ -38,13 +43,18 @@ export default class extends Extension {
         headers: { "Accept-Encoding": "identity" },
     });
 
-    const regex = /<a href="(\/videos\/[^\"]+)"[^>]*>[\s\S]+?<img[^>]+src="([^\"]+)"[\s\S]+?<h6 class="title">([^<]+)<\/h6>/g;
+    const regex = /<a href="([^"]*\/videos\/[^"]+)"[\s\S]*?data-src="([^"]+)"[\s\S]*?<h6 class="title"><a[^>]*>([^<]+)<\/a><\/h6>/g;
     const matches = [...res.matchAll(regex)];
     
     const novel = [];
     for (const match of matches) {
+        let url = match[1];
+        // Convert full URL to relative path if needed
+        if (url.startsWith('https://jable.tv')) {
+          url = url.replace('https://jable.tv', '');
+        }
         novel.push({
-          url: match[1],
+          url: url,
           cover: match[2],
           title: match[3].trim(),
         });
