@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.0.9
+// @version      v0.0.1
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -358,6 +358,9 @@ export default class extends Extension {
       let videoCount = 0;
       while ((match = cardPattern.exec(res)) !== null && videoCount < 30) {
         try {
+
+         console.log("Search response match match ");
+
           const container = match[1];
           
           const linkMatch = container.match(/<a[^>]*href="([^"]+)"[^>]*>/);
