@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         JAVHD.icu
-// @version      v0.0.5
+// @version      v0.0.6
 // @author       bachig26
 // @lang         jp
 // @license      MIT
