@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.0.6
+// @version      v0.0.7
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -358,22 +358,49 @@ export default class extends Extension {
       console.log("URL length:", url ? url.length : 'null/undefined');
       console.log("URL raw value:", url);
 
-      // Handle URL encoding issues
+      // Handle URL encoding and format issues
       let cleanUrl = url;
       
-      // 临时调试：如果URL为空，使用测试URL
+      // 检查URL参数
       if (!url || url.length === 0) {
         console.log("⚠️ Empty URL detected, using test URL for debugging");
         cleanUrl = "/SSIS-469";
       } else if (url && typeof url === 'string') {
-        // Try to decode URL if it's encoded
+        console.log("Processing URL:", url);
+        
+        // 如果是完整URL，提取路径部分
+        if (url.startsWith('https://missav.ai')) {
+          const urlObj = new URL(url);
+          cleanUrl = urlObj.pathname;
+          console.log("Extracted path from full URL:", cleanUrl);
+        } else if (url.startsWith('http')) {
+          // 其他域名的完整URL，提取路径
+          try {
+            const urlObj = new URL(url);
+            cleanUrl = urlObj.pathname;
+            console.log("Extracted path from URL:", cleanUrl);
+          } catch (e) {
+            console.log("URL parsing failed, using as-is:", e);
+            cleanUrl = url;
+          }
+        } else {
+          // 已经是路径格式，直接使用
+          cleanUrl = url;
+        }
+        
+        // 解码URL编码
         try {
-          if (url.includes('%')) {
-            cleanUrl = decodeURIComponent(url);
+          if (cleanUrl.includes('%')) {
+            cleanUrl = decodeURIComponent(cleanUrl);
             console.log("Decoded URL:", cleanUrl);
           }
         } catch (e) {
           console.log("URL decode failed, using original:", e);
+        }
+        
+        // 确保以/开头
+        if (cleanUrl && !cleanUrl.startsWith('/')) {
+          cleanUrl = '/' + cleanUrl;
         }
       }
 
@@ -390,24 +417,47 @@ export default class extends Extension {
 
       console.log("Detail response length:", res.length);
 
-      // Extract title
+      // Extract title - 多种模式尝试
       let title = "";
-      const titleMatch = res.match(/<h1[^>]*>([^<]+)<\/h1>/);
-      if (titleMatch) {
-        title = titleMatch[1].trim();
-      } else {
-        // Fallback to page title
-        const pageTitleMatch = res.match(/<title>([^<]+)<\/title>/);
-        if (pageTitleMatch) {
-          title = pageTitleMatch[1].replace(/ - .*$/, "").trim();
+      
+      // 模式1: 标准h1标签
+      let titleMatch = res.match(/<h1[^>]*class="[^"]*text-base[^"]*"[^>]*>([^<]+)<\/h1>/);
+      if (!titleMatch) {
+        titleMatch = res.match(/<h1[^>]*>([^<]+)<\/h1>/);
+      }
+      if (!titleMatch) {
+        // 模式2: 页面标题
+        titleMatch = res.match(/<title>([^<]+)<\/title>/);
+        if (titleMatch) {
+          title = titleMatch[1].replace(/ - .*$/, "").replace(/^MissAV \| /, "").trim();
         }
+      } else {
+        title = titleMatch[1].trim();
       }
 
-      // Extract cover image
+      // Extract cover image - 多种模式
       let cover = "";
-      const coverMatch = res.match(/<img[^>]*class="[^"]*video-cover[^"]*"[^>]*src="([^"]+)"/);
+      
+      // 模式1: video-cover类
+      let coverMatch = res.match(/<img[^>]*class="[^"]*video-cover[^"]*"[^>]*(?:data-src|src)="([^"]+)"/);
+      if (!coverMatch) {
+        // 模式2: 更通用的img标签查找
+        coverMatch = res.match(/<img[^>]*(?:data-src|src)="([^"]*cover[^"]*\.jpg)"/);
+      }
+      if (!coverMatch) {
+        // 模式3: 从link rel preconnect查找封面
+        coverMatch = res.match(/<link[^>]*href="([^"]*cover[^"]*\.jpg)"[^>]*rel="preconnect"/);
+      }
       if (coverMatch) {
         cover = coverMatch[1];
+        // 确保封面URL完整
+        if (cover && !cover.startsWith('http')) {
+          if (cover.startsWith('//')) {
+            cover = 'https:' + cover;
+          } else if (cover.startsWith('/')) {
+            cover = 'https://missav.ai' + cover;
+          }
+        }
       }
 
       // Extract description/duration info
@@ -415,10 +465,17 @@ export default class extends Extension {
       const descMatch = res.match(/<div[^>]*class="[^"]*text-secondary[^"]*"[^>]*>([^<]+)<\/div>/);
       if (descMatch) {
         desc = descMatch[1].trim();
+      } else {
+        // 备用：查找时长信息
+        const durationMatch = res.match(/(\d{1,2}:\d{2}:\d{2}|\d{1,2}:\d{2})/);
+        if (durationMatch) {
+          desc = `时长: ${durationMatch[1]}`;
+        }
       }
 
       console.log("Extracted title:", title);
       console.log("Extracted cover:", cover);
+      console.log("Extracted desc:", desc);
 
       return {
         title: title || "MISSAV Video",
