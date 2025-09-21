@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.1.9
+// @version      v0.2.0
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -329,8 +329,9 @@ export default class extends Extension {
         }
       });
 
-      console.log("res value after initial request (before Cloudflare check):", res);
-      console.log("typeof res after initial request:", typeof res);
+      console.log("res value after initial request (before Cloudflare check): '" + String(res) + "'");
+      console.log("typeof res after initial request: " + typeof res);
+      console.log("res length after initial request: " + (res ? res.length : 'null/undefined'));
 
       // 检查是否遇到Cloudflare保护
       if (res && (res.includes('Just a moment...') || res.includes('cloudflare'))) {
@@ -343,11 +344,18 @@ export default class extends Extension {
         }
       }
 
-      console.log("res value after Cloudflare handling:", res);
-      console.log("typeof res after Cloudflare handling:", typeof res);
+      console.log("res value after Cloudflare handling: '" + String(res) + "'");
+      console.log("typeof res after Cloudflare handling: " + typeof res);
+      console.log("res length after Cloudflare handling: " + (res ? res.length : 'null/undefined'));
 
-      console.log("Full HTML response:", res);
-      console.log("Search response length:", res ? res.length : 'res is null/undefined');
+      console.log("Full HTML response: '" + String(res) + "'");
+      console.log("Search response length: " + (res ? res.length : 'res is null/undefined'));
+      
+      // 检查res是否真的有内容
+      if (!res || typeof res !== 'string' || res.length === 0) {
+        console.log("⚠️ Search response is empty or not a string!");
+        return [];
+      }
 
       const videos = [];
       
