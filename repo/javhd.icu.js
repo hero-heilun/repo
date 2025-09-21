@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         JAVHD.icu
-// @version      v0.0.1
+// @version      v0.0.2
 // @author       bachig26
 // @lang         jp
 // @license      MIT
@@ -52,17 +52,16 @@ export default class extends Extension {
   }
 
   async detail(url) {
-    const res = await this.request("", {
-        headers: {
-            "Miru-Url": url,
-        },
-    });
+    const res = await this.request(url);
 
     const title = await this.querySelector(res, "h1").text;
     const cover = await this.querySelector(res, "meta[property='og:image']").getAttributeText("content");
     const desc = await this.querySelector(res, "div.post-entry > p").text;
 
-    const urlPatterns = [/https:\/\/emturbovid\.[^\s'"]+/];
+    const urlPatterns = [
+        /https:\/\/emturbovid\.[^\s'"]+/,
+        /https:\/\/turbovidhls\.[^\s'"]+/
+    ];
 
     let episodeUrl = "";
 
@@ -101,26 +100,21 @@ export default class extends Extension {
 }
 
   async watch(url) {
-    const res = await this.request("", {
-        headers: {
-            "Miru-Url": url,
-        },
-    });
-
     let directUrl = "";
-	{
-	const res = await this.request("", {
+    
+    // Handle different video hosting services
+    if (url.includes("turbovidhls.com") || url.includes("emturbovid.com")) {
+        const res = await this.request(url, {
             headers: {
-                "Miru-Url": url,
-                "referer": url.startsWith("https://emturbovid.com/"),
-                "origin": url.startsWith("https://emturbovid.com"),
+                "referer": url.includes("emturbovid.com") ? "https://emturbovid.com/" : "https://turbovidhls.com/",
+                "origin": url.includes("emturbovid.com") ? "https://emturbovid.com" : "https://turbovidhls.com",
             },
-      method: "Get",
-	});
-	
-	const directUrlMatch = res.match(/(https:\/\/[^\s'"]*\.m3u8[^\s'"]*)/);
-    directUrl = directUrlMatch ? directUrlMatch[0] : "";
-	}
+            method: "GET",
+        });
+        
+        const directUrlMatch = res.match(/(https:\/\/[^\s'"]*\.m3u8[^\s'"]*)/);
+        directUrl = directUrlMatch ? directUrlMatch[0] : "";
+    }
 	
     return {
         type: "hls",
