@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.1.4
+// @version      v0.1.5
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -352,7 +352,7 @@ export default class extends Extension {
 
   async detail(url) {
     try {
-      console.log("=== MISSAV DETAIL METHOD START v1.8 ===");
+      console.log("=== MISSAV DETAIL METHOD START v1.9 ===");
       console.log("Arguments count: " + arguments.length);
       
       // 强制转换为字符串来避免console.log的问题
