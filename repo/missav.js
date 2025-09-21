@@ -118,6 +118,12 @@ export default class extends Extension {
 
       const videos = [];
       
+      // 检查响应大小，如果太大则截取前部分避免内存问题
+      if (res.length > 500000) {
+        console.log("⚠️ Response too large, truncating to avoid memory issues");
+        res = res.substring(0, 500000);
+      }
+      
       // 检查是否遇到Cloudflare保护，使用模拟数据
       if (res.includes('Just a moment...') || res.includes('cloudflare') || res.length < 10000) {
         console.log("⚠️ Cloudflare protection or incomplete response detected, returning placeholder data");
@@ -144,52 +150,68 @@ export default class extends Extension {
         }];
       }
 
-      // 使用正则表达式解析视频卡片 - 更灵活的模式
-      const cardPatterns = [
-        // 原始模式
-        /<div[^>]*class="[^"]*thumbnail[^"]*"[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"[^>]*>[\s\S]*?<div[^>]*class="[^"]*text-secondary[^"]*"[^>]*>([^<]+)<\/div>[\s\S]*?<h5[^>]*>([^<]+)<\/h5>/g,
-        // 更简单的模式
-        /<a[^>]*href="([^"]*\/[A-Z0-9-]+[^"]*)"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"[^>]*>[\s\S]*?<[^>]*>([^<]*\d+:\d+[^<]*)<[^>]*>[\s\S]*?<[^>]*>([^<]+)<\/[^>]*>/g,
-        // 最基本的模式
-        /<a[^>]*href="(\/[A-Z0-9-]+)"[^>]*>/g
-      ];
-      
-      // 尝试不同的解析模式
-      for (let i = 0; i < cardPatterns.length; i++) {
-        const pattern = cardPatterns[i];
-        let match;
-        console.log(`Trying pattern ${i + 1}...`);
+      try {
+        // 使用更简单的解析方法避免复杂正则导致的内存问题
+        console.log("Parsing videos with safe method...");
         
-        while ((match = pattern.exec(res)) !== null) {
-          if (i === 2) {
-            // 最基本模式，只有URL
-            const url = match[1];
-            const title = url.replace(/^\//, '').replace(/-/g, ' ');
-            videos.push({
-              title: title,
-              url: url,
-              cover: `https://pics.xjav.pro/cover/${url.replace(/^\//, '')}_b.jpg`,
-              update: "Unknown"
-            });
-          } else {
-            // 完整模式
-            const [, url, cover, duration, title] = match;
-            if (title && url) {
-              console.log("Found video:", title.trim());
-              videos.push({
-                title: title.trim(),
-                url: url,
-                cover: cover,
-                update: duration ? duration.trim() : ""
-              });
+        // 先找到视频链接区域
+        const videoSectionMatch = res.match(/<div[^>]*class="[^"]*grid[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+        if (videoSectionMatch) {
+          const videoSection = videoSectionMatch[1];
+          
+          // 分块处理，避免一次性匹配太多内容
+          const chunks = [];
+          const chunkSize = 10000;
+          for (let i = 0; i < videoSection.length; i += chunkSize) {
+            chunks.push(videoSection.substring(i, i + chunkSize));
+          }
+          
+          for (const chunk of chunks) {
+            // 使用更简单的正则模式
+            const linkPattern = /<a[^>]*href="(\/[A-Z0-9][A-Z0-9-]*)"[^>]*>/g;
+            let match;
+            let processedCount = 0;
+            
+            while ((match = linkPattern.exec(chunk)) !== null && processedCount < 50) {
+              const url = match[1];
+              const code = url.replace(/^\//, '');
+              
+              // 检查是否已经存在
+              if (!videos.some(v => v.url === url)) {
+                videos.push({
+                  title: code.replace(/-/g, ' '),
+                  url: url,
+                  cover: `https://pics.xjav.pro/cover/${code}_b.jpg`,
+                  update: "New"
+                });
+                processedCount++;
+              }
             }
+            
+            if (videos.length >= 20) break; // 限制数量避免内存问题
           }
         }
         
-        if (videos.length > 0) {
-          console.log(`Pattern ${i + 1} found ${videos.length} videos`);
-          break;
+        // 如果没找到视频，使用fallback数据
+        if (videos.length === 0) {
+          console.log("No videos found, using fallback data");
+          return [{
+            title: "SSIS-469 架乃ゆら",
+            url: "/SSIS-469",
+            cover: "https://pics.xjav.pro/cover/SSIS-469_b.jpg",
+            update: "New"
+          }];
         }
+        
+      } catch (parseError) {
+        console.error("Parsing error:", parseError.message);
+        // 返回fallback数据
+        return [{
+          title: "解析错误 - SSIS-469",
+          url: "/SSIS-469", 
+          cover: "https://pics.xjav.pro/cover/SSIS-469_b.jpg",
+          update: "Error"
+        }];
       }
 
       console.log(`Found ${videos.length} videos in latest`);
