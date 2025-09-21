@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.1.5
+// @version      v0.1.6
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -352,7 +352,7 @@ export default class extends Extension {
 
   async detail(url) {
     try {
-      console.log("=== MISSAV DETAIL METHOD START v1.9 ===");
+      console.log("=== MISSAV DETAIL METHOD START v2.0 ===");
       console.log("Arguments count: " + arguments.length);
       
       // 强制转换为字符串来避免console.log的问题
@@ -435,7 +435,7 @@ export default class extends Extension {
           "User-Agent": this.userAgent,
           "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
           "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-          "Accept-Encoding": "gzip, deflate, br"
+          "Accept-Encoding": "gzip, deflate"
         }
       });
 
