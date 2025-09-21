@@ -313,37 +313,43 @@ export default class extends Extension {
       const url = `/search/${encodeURIComponent(keyword)}?page=${page}`;
       console.log("Search URL:", url);
 
-      const res = await this.request(url, {
-        headers: {
-                 "User-Agent": this.userAgent,
-                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-                 "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-                 "Accept-Encoding": "gzip, deflate, br",
-                 "Cache-Control": "no-cache",
-                 "Pragma": "no-cache",
-                 "Sec-Fetch-Dest": "document",
-                 "Sec-Fetch-Mode": "navigate",
-                 "Sec-Fetch-Site": "none",
-                 "Sec-Fetch-User": "?1",
-                 "Upgrade-Insecure-Requests": "1"
-        }
-      });
+      let res; // Declare res with let so it can be reassigned
 
-      console.log("Type of res after initial request:", typeof res);
-      console.log("Res content after initial request (first 500 chars):", String(res).substring(0, 500));
-
-      // 检查是否遇到Cloudflare保护
-        if (String(res).includes('Just a moment...') || String(res).includes('cloudflare')) {
-          console.log("Cloudflare detected, trying alternative approach...");
-          const alternativeRes = await this.handleCloudflare(url);
-          console.log("Type of alternativeRes:", typeof alternativeRes);
-          console.log("AlternativeRes content (first 500 chars):", String(alternativeRes).substring(0, 500));
-          if (alternativeRes) {
-            res = alternativeRes;
+      try {
+        res = await this.request(url, {
+          headers: {
+                   "User-Agent": this.userAgent,
+                   "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+                   "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                   "Accept-Encoding": "gzip, deflate, br",
+                   "Cache-Control": "no-cache",
+                   "Pragma": "no-cache",
+                   "Sec-Fetch-Dest": "document",
+                   "Sec-Fetch-Mode": "navigate",
+                   "Sec-Fetch-Site": "none",
+                   "Sec-Fetch-User": "?1",
+                   "Upgrade-Insecure-Requests": "1"
           }
+        });
+        console.log("Type of res after initial request (successful):", typeof res);
+        console.log("Res content after initial request (first 500 chars):", String(res).substring(0, 500));
+      } catch (error) {
+        console.log("Initial request failed, likely Cloudflare. Error:", error.message);
+        // If initial request fails, try Cloudflare bypass
+        const alternativeRes = await this.handleCloudflare(url);
+        console.log("Type of alternativeRes:", typeof alternativeRes);
+        console.log("AlternativeRes content (first 500 chars):", String(alternativeRes).substring(0, 500));
+        if (alternativeRes) {
+          res = alternativeRes;
+        } else {
+          // If Cloudflare bypass also fails, rethrow or handle appropriately
+          throw new Error("Failed to get content after Cloudflare bypass attempt.");
         }
-      console.log("Type of res after Cloudflare check:", typeof res);
-      console.log("Res content after Cloudflare check (first 500 chars):", String(res).substring(0, 500));
+      }
+
+      // Now 'res' should contain the HTML, either from initial request or Cloudflare bypass
+      console.log("Type of res after Cloudflare check (final):", typeof res);
+      console.log("Res content after Cloudflare check (final, first 500 chars):", String(res).substring(0, 500));
 
       console.log("Full HTML response:", res);
       console.log("Search response length:", res.length);
