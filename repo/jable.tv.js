@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         Jable
-// @version      v0.0.4
+// @version      v0.0.5
 // @author       YourName
 // @lang         zh-cn
 // @license      MIT
@@ -13,7 +13,15 @@
 
 export default class extends Extension {
   async latest(page) {
-    const url = page === 1 ? '/hot/' : `/hot/page/${page}/`;
+    let url;
+    if (page === 1) {
+      url = '/hot/';
+    } else {
+      // Use async API for pagination
+      const from = String((page - 1) * 24 + 1).padStart(2, '0');
+      url = `/hot/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed_week&from=${from}`;
+    }
+    
     const res = await this.request(url, {
         headers: { "Accept-Encoding": "identity" },
     });
