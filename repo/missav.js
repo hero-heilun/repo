@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.1.6
+// @version      v0.1.7
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -552,23 +552,32 @@ export default class extends Extension {
 
   async watch(url) {
     try {
-      console.log("=== MISSAV WATCH METHOD START v1.0 ===");
-      console.log("URL parameter:", url);
-      console.log("URL type:", typeof url);
-      console.log("URL length:", url ? url.length : 'null/undefined');
-      console.log("URL value (JSON):", JSON.stringify(url));
+      console.log("=== MISSAV WATCH METHOD START v1.1 ===");
+      console.log("Arguments count: " + arguments.length);
+      
+      // 强制转换为字符串来避免console.log的问题
+      for (let i = 0; i < arguments.length; i++) {
+        const arg = arguments[i];
+        console.log("Arg[" + i + "]: '" + String(arg) + "' type:" + typeof arg);
+      }
+      
+      console.log("Named param 'url': '" + String(url) + "' type:" + typeof url);
+      
+      // 直接使用第一个参数，像bfzy.tv.js一样
+      const receivedParam = arguments[0];
+      console.log("Received param: '" + String(receivedParam) + "'");
 
       // Handle URL encoding issues
-      let cleanUrl = url;
+      let cleanUrl = receivedParam;
       
       // 临时调试：如果URL为空，使用测试URL
-      if (!url || url.length === 0) {
+      if (!receivedParam || receivedParam.length === 0) {
         console.log("⚠️ Empty watch URL detected, using test URL for debugging");
         cleanUrl = "/SSIS-469";
-      } else if (url && typeof url === 'string') {
+      } else if (receivedParam && typeof receivedParam === 'string') {
         try {
-          if (url.includes('%')) {
-            cleanUrl = decodeURIComponent(url);
+          if (receivedParam.includes('%')) {
+            cleanUrl = decodeURIComponent(receivedParam);
             console.log("Decoded watch URL:", cleanUrl);
           }
         } catch (e) {
@@ -576,7 +585,7 @@ export default class extends Extension {
         }
       }
 
-      console.log("Final watch URL to use:", cleanUrl);
+      console.log("Final watch URL to use: '" + String(cleanUrl) + "'");
 
       // Ensure URL is complete
       if (!cleanUrl.startsWith('http')) {
@@ -588,7 +597,7 @@ export default class extends Extension {
           "User-Agent": this.userAgent,
           "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
           "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-          "Accept-Encoding": "gzip, deflate, br",
+          "Accept-Encoding": "gzip, deflate",
           "Referer": "https://missav.ai/",
           "Cache-Control": "no-cache"
         }
