@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         Jable
-// @version      v0.0.1
+// @version      v0.0.2
 // @author       YourName
 // @lang         zh-cn
 // @license      MIT
@@ -13,16 +13,12 @@
 
 export default class extends Extension {
   async latest(page) {
-    const res = await this.request(
-      `/hot/?mode=async&function=get_block&block_id=list_videos_latest_videos_list&sort_by=post_date&from=${page}`,
-      {
-        headers: {
-          "Accept-Encoding": "identity",
-        },
-      }
-    );
+    const url = page === 1 ? '/hot/' : `/hot/page/${page}/`;
+    const res = await this.request(url, {
+        headers: { "Accept-Encoding": "identity" },
+    });
 
-    const videoItems = res.match(/<div class="video-thumb">[^]+?<\/div>\s*<\/div>/g);
+    const videoItems = res.match(/<div class="card-video">[\s\S]+?<\/div>[\s\S]+?<\/div>/g);
     if (!videoItems) {
       return [];
     }
@@ -30,8 +26,8 @@ export default class extends Extension {
     const novel = [];
     for (const item of videoItems) {
       const urlMatch = item.match(/<a href="([^"]+)"/);
-      const titleMatch = item.match(/<h5>([^<]+)<\/h5>/);
-      const coverMatch = item.match(/<img src="([^"]+)"/);
+      const titleMatch = item.match(/<h6 class="title">([^<]+)<\/h6>/);
+      const coverMatch = item.match(/<img[^>]+src="([^"]+)"/);
 
       if (urlMatch && titleMatch && coverMatch) {
         novel.push({
@@ -45,16 +41,12 @@ export default class extends Extension {
   }
 
   async search(kw, page) {
-    const res = await this.request(
-      `/search/${kw}/?mode=async&function=get_block&block_id=list_videos_videos_list_search_result&q=${kw}&sort_by=post_date&from=${page}`,
-      {
-        headers: {
-          "Accept-Encoding": "identity",
-        },
-      }
-    );
+    const url = page === 1 ? `/search/${kw}/` : `/search/${kw}/page/${page}/`;
+    const res = await this.request(url, {
+        headers: { "Accept-Encoding": "identity" },
+    });
 
-    const videoItems = res.match(/<div class="video-thumb">[^]+?<\/div>\s*<\/div>/g);
+    const videoItems = res.match(/<div class="card-video">[\s\S]+?<\/div>[\s\S]+?<\/div>/g);
     if (!videoItems) {
       return [];
     }
@@ -62,8 +54,8 @@ export default class extends Extension {
     const novel = [];
     for (const item of videoItems) {
       const urlMatch = item.match(/<a href="([^"]+)"/);
-      const titleMatch = item.match(/<h5>([^<]+)<\/h5>/);
-      const coverMatch = item.match(/<img src="([^"]+)"/);
+      const titleMatch = item.match(/<h6 class="title">([^<]+)<\/h6>/);
+      const coverMatch = item.match(/<img[^>]+src="([^"]+)"/);
 
       if (urlMatch && titleMatch && coverMatch) {
         novel.push({
@@ -78,17 +70,22 @@ export default class extends Extension {
 
   async detail(url) {
     const res = await this.request(url, {
-      headers: {
-        "Accept-Encoding": "identity",
-      },
+      headers: { "Accept-Encoding": "identity" },
     });
 
-    const titleMatch = res.match(/<h1 class="title">([^<]+)<\/h1>/);
+    const titleMatch = res.match(/<h1[^>]*>([^<]+)<\/h1>/);
     const title = titleMatch ? titleMatch[1].trim() : "";
 
     const coverMatch = res.match(/<meta property="og:image" content="([^"]+)"/);
-    const cover = coverMatch ? coverMatch[1] : "";
+    let cover = coverMatch ? coverMatch[1] : "";
     
+    if (!cover) {
+        const posterMatch = res.match(/poster="([^"]+)"/);
+        if (posterMatch) {
+            cover = posterMatch[1];
+        }
+    }
+
     const descMatch = res.match(/<div class="synopsis">[^]+?<span>([^<]+)<\/span>/);
     const desc = descMatch ? descMatch[1].trim() : "";
 
