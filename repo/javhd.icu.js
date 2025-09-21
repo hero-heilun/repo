@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         JAVHD.icu
-// @version      v0.0.4
+// @version      v0.0.5
 // @author       bachig26
 // @lang         jp
 // @license      MIT
@@ -73,35 +73,33 @@ export default class extends Extension {
 
     let episodeUrl = "";
 
-    // Look for iframe sources first
-    const iframeMatches = res.match(/<iframe[^>]*src=["']([^"']+)["'][^>]*>/gi);
-    if (iframeMatches) {
-        for (const iframe of iframeMatches) {
-            const srcMatch = iframe.match(/src=["']([^"']+)["']/i);
-            if (srcMatch) {
-                const src = srcMatch[1];
-                // Check if it's a video hosting URL
-                if (src.includes('turbovid') || src.includes('emturbovid')) {
-                    episodeUrl = src;
-                    break;
-                }
-            }
+    const urlPatterns = [
+      /https:\/\/emturbovid\.[^\s'"]+/,
+      /https:\/\/[^\s'"]*turbovid[^\s'"]+/,
+      /https:\/\/[^\s'"]*\.mp4[^\s'"]+/,
+      /https:\/\/[^\s'"]*video[^\s'"]+/,
+      /https:\/\/[^\s'"]*embed[^\s'"]+/
+    ];
+
+    for (const pattern of urlPatterns) {
+        const match = res.match(pattern);
+        if (match) {
+            episodeUrl = match[0];
+            break;
         }
     }
 
-    // If no iframe found, try the old method with URL patterns
     if (!episodeUrl) {
-        const urlPatterns = [
-            /https:\/\/emturbovid\.[^\s'"]+/,
-            /https:\/\/turbovidhls\.[^\s'"]+/
-        ];
+        const iframeMatch = res.match(/<iframe[^>]*src=["']([^"']+)["']/i);
+        if (iframeMatch) {
+            episodeUrl = iframeMatch[1];
+        }
+    }
 
-        for (const pattern of urlPatterns) {
-            const match = res.match(pattern);
-            if (match) {
-                episodeUrl = match[0];
-                break;
-            }
+    if (!episodeUrl) {
+        const videoMatch = res.match(/<video[^>]*src=["']([^"']+)["']/i);
+        if (videoMatch) {
+            episodeUrl = videoMatch[1];
         }
     }
     
