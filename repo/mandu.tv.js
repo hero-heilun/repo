@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         麻豆传媒
-// @version      v0.0.1.5
+// @version      v0.0.1.6
 // @author       jason
 // @lang         zh-cn
 // @license      MIT
@@ -344,7 +344,27 @@ export default class extends Extension {
       let cover = "";
       const ogImageMatch = res.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/);
       if (ogImageMatch) {
-        cover = ogImageMatch[1];
+        let coverUrl = ogImageMatch[1];
+        if (coverUrl.startsWith('/')) {
+            coverUrl = 'https://madou.club' + coverUrl;
+        }
+        cover = coverUrl;
+      }
+
+      // Fallback for cover
+      if (!cover) {
+        const contentMatch = res.match(/<div[^>]*class=\"[^\"]*article-content[^\"]*\"[^>]*>(.*?)<\\/div>/s);
+        if (contentMatch) {
+            const contentHtml = contentMatch[1];
+            const imgMatch = contentHtml.match(/<img[^>]*(?:data-src|src)=["']([^"']+)["']/);
+            if (imgMatch && !imgMatch[1].includes('data:image')) {
+                let coverUrl = imgMatch[1];
+                if (coverUrl.startsWith('/')) {
+                    coverUrl = 'https://madou.club' + coverUrl;
+                }
+                cover = coverUrl;
+            }
+        }
       }
 
       // Extract description from article content
