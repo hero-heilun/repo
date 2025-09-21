@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.0.7
+// @version      v0.0.8
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -368,16 +368,30 @@ export default class extends Extension {
       } else if (url && typeof url === 'string') {
         console.log("Processing URL:", url);
         
-        // 如果是完整URL，提取路径部分
+        // 如果是完整URL，手动提取路径部分
         if (url.startsWith('https://missav.ai')) {
-          const urlObj = new URL(url);
-          cleanUrl = urlObj.pathname;
+          // 手动解析 https://missav.ai/path 格式
+          const pathStart = url.indexOf('/', 8); // 跳过 https://
+          if (pathStart !== -1) {
+            cleanUrl = url.substring(pathStart);
+          } else {
+            cleanUrl = '/';
+          }
           console.log("Extracted path from full URL:", cleanUrl);
         } else if (url.startsWith('http')) {
-          // 其他域名的完整URL，提取路径
+          // 其他域名的完整URL，手动提取路径
           try {
-            const urlObj = new URL(url);
-            cleanUrl = urlObj.pathname;
+            const protocolEnd = url.indexOf('://');
+            if (protocolEnd !== -1) {
+              const pathStart = url.indexOf('/', protocolEnd + 3);
+              if (pathStart !== -1) {
+                cleanUrl = url.substring(pathStart);
+              } else {
+                cleanUrl = '/';
+              }
+            } else {
+              cleanUrl = url;
+            }
             console.log("Extracted path from URL:", cleanUrl);
           } catch (e) {
             console.log("URL parsing failed, using as-is:", e);
