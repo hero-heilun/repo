@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.1.7
+// @version      v0.1.8
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -531,6 +531,14 @@ export default class extends Extension {
       console.log("Extracted cover:", cover);
       console.log("Extracted desc:", desc);
 
+      // 确保URL是完整的，用于浏览器预览
+      let fullUrl = cleanUrl;
+      if (cleanUrl && !cleanUrl.startsWith('http')) {
+        fullUrl = `https://missav.ai${cleanUrl}`;
+      }
+      
+      console.log("Episode URL for browser preview: '" + fullUrl + "'");
+
       return {
         title: title || "MISSAV Video",
         cover: cover,
@@ -539,7 +547,7 @@ export default class extends Extension {
           title: "播放",
           urls: [{
             name: "播放",
-            url: cleanUrl
+            url: fullUrl
           }]
         }]
       };
