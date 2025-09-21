@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.0.5
+// @version      v0.0.6
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -144,15 +144,24 @@ export default class extends Extension {
           try {
             const container = match[1];
             
-            // 提取链接
+            // 提取链接 - 过滤模板变量
             const linkMatch = container.match(/<a[^>]*href="([^"]+)"[^>]*>/);
             if (!linkMatch) continue;
             const url = linkMatch[1];
             
+            // 跳过包含模板变量的URL
+            if (url.includes('ITEM.') || url.includes('JAVASCRIPT') || url.includes('item.')) {
+              continue;
+            }
+            
             // 提取标题 - 改进逻辑避免模板变量
             let title = '';
             const titleMatch = container.match(/<img[^>]*alt="([^"]*)"/); 
-            if (titleMatch && titleMatch[1] && !titleMatch[1].includes('item.')) {
+            if (titleMatch && titleMatch[1] && 
+                !titleMatch[1].includes('item.') && 
+                !titleMatch[1].includes('ITEM.') &&
+                !titleMatch[1].includes('JAVASCRIPT') &&
+                titleMatch[1].trim().length > 0) {
               title = titleMatch[1];
             }
             
@@ -160,8 +169,32 @@ export default class extends Extension {
             if (!title) {
               // 尝试从标题属性
               const titleAttrMatch = container.match(/title="([^"]+)"/);
-              if (titleAttrMatch && !titleAttrMatch[1].includes('item.')) {
+              if (titleAttrMatch && 
+                  !titleAttrMatch[1].includes('item.') && 
+                  !titleAttrMatch[1].includes('ITEM.') &&
+                  !titleAttrMatch[1].includes('JAVASCRIPT') &&
+                  titleAttrMatch[1].trim().length > 0) {
                 title = titleAttrMatch[1];
+              }
+            }
+            
+            // 尝试从其他文本节点提取标题
+            if (!title) {
+              const textMatches = container.match(/>([^<]{10,})</g);
+              if (textMatches) {
+                for (const textMatch of textMatches) {
+                  const text = textMatch.replace(/^>|<$/g, '').trim();
+                  if (text && 
+                      !text.includes('item.') && 
+                      !text.includes('ITEM.') &&
+                      !text.includes('JAVASCRIPT') &&
+                      !text.match(/^\d+:\d+$/) && // 不是时长格式
+                      text.length > 5 && 
+                      text.length < 200) {
+                    title = text;
+                    break;
+                  }
+                }
               }
             }
             
