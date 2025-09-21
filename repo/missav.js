@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.2.0
+// @version      v0.2.1
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -358,6 +358,16 @@ export default class extends Extension {
       }
 
       const videos = [];
+      
+      // 先检查HTML结构，显示前2000字符用于调试
+      console.log("Search HTML preview (first 2000 chars): '" + res.substring(0, 2000) + "'");
+      
+      // 检查是否有aspect-w-16容器
+      const aspectContainers = res.match(/<div[^>]*class="[^"]*aspect-w-16[^"]*aspect-h-9[^"]*rounded[^"]*"[^>]*>/g);
+      console.log("Found aspect containers: " + (aspectContainers ? aspectContainers.length : 0));
+      if (aspectContainers && aspectContainers.length > 0) {
+        console.log("First aspect container: " + aspectContainers[0]);
+      }
       
       // 使用相同的卡片解析逻辑
       const cardPattern = /<div[^>]*class="[^"]*aspect-w-16[^"]*aspect-h-9[^"]*rounded[^"]*"[^>]*>([\s\S]*?)<\/div>/g;
