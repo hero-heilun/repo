@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.2.1
+// @version      v0.0.1
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -339,6 +339,7 @@ export default class extends Extension {
           }
         }
 
+      console.log("Full HTML response:", res);
       console.log("Search response length:", res.length);
 
       const videos = [];
