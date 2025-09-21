@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         麻豆传媒
-// @version      v0.0.1.4
+// @version      v0.0.1.5
 // @author       jason
 // @lang         zh-cn
 // @license      MIT
@@ -53,7 +53,8 @@ export default class extends Extension {
       const res = await this.request(url, {
         headers: {
           "Miru-Url": "https://madou.club",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept-Encoding": "identity"
         },
       });
 
@@ -86,7 +87,8 @@ export default class extends Extension {
       const res = await this.request(url, {
         headers: {
           "Miru-Url": "https://madou.club",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept-Encoding": "identity"
         },
       });
 
@@ -312,7 +314,8 @@ export default class extends Extension {
       const res = await this.request(cleanUrl, {
         headers: {
           "Miru-Url": "https://madou.club",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept-Encoding": "identity"
         },
       });
 
@@ -339,7 +342,7 @@ export default class extends Extension {
 
       // Extract cover from og:image meta tag
       let cover = "";
-      const ogImageMatch = res.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/);
+      const ogImageMatch = res.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/);
       if (ogImageMatch) {
         cover = ogImageMatch[1];
       }
