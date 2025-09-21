@@ -355,17 +355,107 @@ export default class extends Extension {
       const cardPattern = /<div[^>]*class="[^"]*aspect-w-16[^"]*aspect-h-9[^"]*rounded[^"]*"[^>]*>([\s\S]*?)<\/div>/g;
 
       let match;
-      while ((match = cardPattern.exec(res)) !== null) {
-        const [, url, cover, duration, title] = match;
-        
-        if (title && url) {
-          console.log("Found search result:", title.trim());
-          videos.push({
-            title: title.trim(),
-            url: url,
-            cover: cover,
-            update: duration ? duration.trim() : ""
-          });
+      let videoCount = 0;
+      while ((match = cardPattern.exec(res)) !== null && videoCount < 30) {
+        try {
+          const container = match[1];
+          
+          const linkMatch = container.match(/<a[^>]*href="([^"]+)"[^>]*>/);
+          if (!linkMatch) continue;
+          const url = linkMatch[1];
+          
+          if (url.includes('ITEM.') || url.includes('JAVASCRIPT') || url.includes('item.')) {
+            continue;
+          }
+          
+          let title = '';
+          const titleMatch = container.match(/<img[^>]*alt="([^"]*)"/); 
+          if (titleMatch && titleMatch[1] && 
+              !titleMatch[1].includes('item.') && 
+              !titleMatch[1].includes('ITEM.') &&
+              !titleMatch[1].includes('JAVASCRIPT') &&
+              titleMatch[1].trim().length > 0) {
+            title = titleMatch[1];
+          }
+          
+          if (!title) {
+            const titleAttrMatch = container.match(/title="([^"]+)"/);
+            if (titleAttrMatch && 
+                !titleAttrMatch[1].includes('item.') && 
+                !titleAttrMatch[1].includes('ITEM.') &&
+                !titleAttrMatch[1].includes('JAVASCRIPT') &&
+                titleAttrMatch[1].trim().length > 0) {
+              title = titleAttrMatch[1];
+            }
+          }
+          
+          if (!title) {
+            const textMatches = container.match(/>([^<]{10,})</g);
+            if (textMatches) {
+              for (const textMatch of textMatches) {
+                const text = textMatch.replace(/^>|<$/g, '').trim();
+                if (text && 
+                    !text.includes('item.') && 
+                    !text.includes('ITEM.') &&
+                    !text.includes('JAVASCRIPT') &&
+                    !text.match(/^\d+:\d+$/) && 
+                    text.length > 5 && 
+                    text.length < 200) {
+                  title = text;
+                  break;
+                }
+              }
+            }
+          }
+          
+          let cover = '';
+          let coverMatch = container.match(/<img[^>]*data-src="([^"]*)"/);
+          if (coverMatch) {
+            cover = coverMatch[1];
+          } else {
+            coverMatch = container.match(/<img[^>]*src="([^"]*)"/);
+            if (coverMatch) {
+              cover = coverMatch[1];
+            }
+          }
+          
+          if (cover && !cover.startsWith('http')) {
+            if (cover.startsWith('//')) {
+              cover = 'https:' + cover;
+            } else if (cover.startsWith('/')) {
+              cover = 'https://missav.ai' + cover;
+            }
+          }
+          
+          const durationMatch = container.match(/>([0-9:]+)<\//);
+          const duration = durationMatch ? durationMatch[1] : "Unknown";
+          
+          if (!title && url) {
+            const urlParts = url.split('/');
+            const code = urlParts[urlParts.length - 1] || urlParts[urlParts.length - 2] || '';
+            if (code && code.length > 2) {
+              title = code.toUpperCase().replace(/-/g, ' ');
+            }
+          }
+          
+          if (!title) {
+            title = 'Video ' + (videoCount + 1);
+          }
+          
+          if (url && title) {
+            videos.push({
+              title: title.trim(),
+              url: url,
+              cover: cover,
+              update: duration
+            });
+            videoCount++;
+            console.log(`Found video ${videoCount}: ${title.trim().substring(0, 50)}`);
+          }
+          
+        } catch (containerError) {
+          console.error("Container error:", containerError);
+          continue;
         }
       }
 
