@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.0.8
+// @version      v0.0.9
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -352,7 +352,9 @@ export default class extends Extension {
 
   async detail(url) {
     try {
-      console.log("=== MISSAV DETAIL METHOD START v1.1 ===");
+      console.log("=== MISSAV DETAIL METHOD START v1.2 ===");
+      console.log("Arguments received:", arguments.length);
+      console.log("First argument:", arguments[0]);
       console.log("URL parameter:", JSON.stringify(url));
       console.log("URL type:", typeof url);
       console.log("URL length:", url ? url.length : 'null/undefined');
@@ -362,9 +364,10 @@ export default class extends Extension {
       let cleanUrl = url;
       
       // 检查URL参数
-      if (!url || url.length === 0) {
-        console.log("⚠️ Empty URL detected, using test URL for debugging");
-        cleanUrl = "/SSIS-469";
+      if (!url || url.length === 0 || url === 'undefined' || url === 'null') {
+        console.log("⚠️ Empty/invalid URL detected, using test URL for debugging");
+        console.log("Using hardcoded test URL: /mbrbn-059");
+        cleanUrl = "/mbrbn-059";
       } else if (url && typeof url === 'string') {
         console.log("Processing URL:", url);
         
@@ -430,6 +433,10 @@ export default class extends Extension {
       });
 
       console.log("Detail response length:", res.length);
+      
+      // 调试：显示HTML片段
+      const htmlPreview = res.substring(0, 2000);
+      console.log("HTML preview (first 2000 chars):", htmlPreview);
 
       // Extract title - 多种模式尝试
       let title = "";
