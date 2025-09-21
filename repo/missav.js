@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.0.3
+// @version      v0.0.4
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -124,165 +124,90 @@ export default class extends Extension {
         res = res.substring(0, 500000);
       }
       
-      // 检查是否遇到Cloudflare保护，使用模拟数据
-      if (res.includes('Just a moment...') || res.includes('cloudflare') || res.length < 10000) {
-        console.log("⚠️ Cloudflare protection or incomplete response detected, returning placeholder data");
-        return [{
-          title: "SSIS-469 架乃ゆら 淫乱女教师的诱惑",
-          url: "/SSIS-469",
-          cover: "https://pics.xjav.pro/cover/SSIS-469_b.jpg",
-          update: "60:00"
-        }, {
-          title: "JUFE-456 美乳妻 人妻的秘密",
-          url: "/JUFE-456", 
-          cover: "https://pics.xjav.pro/cover/JUFE-456_b.jpg",
-          update: "45:30"
-        }, {
-          title: "FSDSS-567 桃尻かなめ 制服美少女",
-          url: "/FSDSS-567",
-          cover: "https://pics.xjav.pro/cover/FSDSS-567_b.jpg", 
-          update: "50:15"
-        }, {
-          title: "MIDV-789 水卜さくら 女子大生の初体験",
-          url: "/MIDV-789",
-          cover: "https://pics.xjav.pro/cover/MIDV-789_b.jpg",
-          update: "55:20"
-        }];
+      // 检查是否仍然遇到Cloudflare保护
+      if (res.includes('Just a moment...') || res.includes('cloudflare') || res.length < 1000) {
+        console.log("⚠️ Cloudflare protection still detected");
+        return [];
       }
 
       try {
-        // 使用更简单的解析方法避免复杂正则导致的内存问题
-        console.log("Parsing videos with safe method...");
+        // 使用正确的MissAV HTML结构解析
+        console.log("Parsing with correct MissAV structure...");
         
-        // 尝试多种可能的视频区域模式
-        const videoSectionPatterns = [
-          // 基于missav实际结构
-          /<div[^>]*class="[^"]*grid[^"]*"[^>]*>([\s\S]*?)<\/div>/,
-          // 基于参考代码的结构
-          /<div[^>]*class="[^"]*video-grid[^"]*"[^>]*>([\s\S]*?)<\/div>/,
-          // 通用容器
-          /<main[^>]*>([\s\S]*?)<\/main>/,
-          // 更广泛的匹配
-          /<body[^>]*>([\s\S]*?)<\/body>/
-        ];
+        // 基于实际MissAV结构：aspect-w-16 aspect-h-9 rounded容器
+        const containerPattern = /<div[^>]*class="[^"]*aspect-w-16[^"]*aspect-h-9[^"]*rounded[^"]*"[^>]*>([\s\S]*?)<\/div>/g;
         
-        let videoSection = null;
-        for (const pattern of videoSectionPatterns) {
-          const match = res.match(pattern);
-          if (match) {
-            videoSection = match[1];
-            console.log(`Found video section with pattern, length: ${videoSection.length}`);
-            break;
-          }
-        }
+        let match;
+        let videoCount = 0;
         
-        if (videoSection) {
-          // 分块处理，避免一次性匹配太多内容
-          const chunks = [];
-          const chunkSize = 15000;
-          for (let i = 0; i < videoSection.length; i += chunkSize) {
-            chunks.push(videoSection.substring(i, i + chunkSize));
-          }
-          
-          console.log(`Processing ${chunks.length} chunks`);
-          
-          for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
-            const chunk = chunks[chunkIndex];
-            console.log(`Processing chunk ${chunkIndex + 1}/${chunks.length}`);
+        while ((match = containerPattern.exec(res)) !== null && videoCount < 30) {
+          try {
+            const container = match[1];
             
-            // 尝试多种链接模式
-            const linkPatterns = [
-              // 标准AV代码格式
-              /<a[^>]*href="(\/[A-Z]{2,8}-?\d{3,5}[^"]*)"[^>]*>/g,
-              // 更宽泛的模式
-              /<a[^>]*href="(\/[A-Z0-9][A-Z0-9-]{3,})"[^>]*>/g,
-              // 包含数字的模式
-              /<a[^>]*href="(\/[^"]*[A-Z]{2,}[^"]*\d+[^"]*)"[^>]*>/g,
-              // 最基本的模式
-              /<a[^>]*href="(\/[^\/\s"]{4,})"[^>]*>/g
-            ];
+            // 提取链接
+            const linkMatch = container.match(/<a[^>]*href="([^"]+)"[^>]*>/);
+            if (!linkMatch) continue;
+            const url = linkMatch[1];
             
-            for (let patternIndex = 0; patternIndex < linkPatterns.length; patternIndex++) {
-              const linkPattern = linkPatterns[patternIndex];
-              let match;
-              let processedCount = 0;
-              
-              // 重置正则表达式索引
-              linkPattern.lastIndex = 0;
-              
-              while ((match = linkPattern.exec(chunk)) !== null && processedCount < 20) {
-                const url = match[1];
-                const code = url.replace(/^\//, '');
-                
-                // 过滤掉明显不是视频的链接
-                if (code.length < 4 || 
-                    code.includes('search') || 
-                    code.includes('page') ||
-                    code.includes('category') ||
-                    code.includes('tag') ||
-                    code.includes('actress') ||
-                    code.includes('studio')) {
-                  continue;
-                }
-                
-                // 检查是否已经存在
-                if (!videos.some(v => v.url === url)) {
-                  const title = code.toUpperCase().replace(/-/g, ' ');
-                  videos.push({
-                    title: title,
-                    url: url,
-                    cover: `https://pics.xjav.pro/cover/${code}_b.jpg`,
-                    update: "New"
-                  });
-                  processedCount++;
-                  console.log(`Found video: ${title} -> ${url}`);
-                }
-              }
-              
-              if (videos.length > 0) {
-                console.log(`Pattern ${patternIndex + 1} found ${videos.length} videos so far`);
-                break; // 找到视频就跳出模式循环
-              }
+            // 提取标题(从img alt属性)
+            const titleMatch = container.match(/<img[^>]*alt="([^"]*)"/); 
+            let title = titleMatch ? titleMatch[1] : '';
+            
+            // 提取封面(优先data-src，然后src)
+            let coverMatch = container.match(/<img[^>]*(?:data-src|src)="([^"]*)"/); 
+            let cover = coverMatch ? coverMatch[1] : '';
+            
+            // 提取时长
+            const durationMatch = container.match(/>([0-9:]+)<\//);
+            const duration = durationMatch ? durationMatch[1] : "Unknown";
+            
+            // 如果没有标题，从URL提取
+            if (!title && url) {
+              const urlParts = url.split('/');
+              title = urlParts[urlParts.length - 1] || urlParts[urlParts.length - 2] || '';
             }
             
-            if (videos.length >= 15) break; // 限制数量避免内存问题
-          }
-        } else {
-          console.log("No video section found, trying direct search on full content");
-          
-          // 如果找不到视频区域，直接在整个内容中搜索
-          const directPattern = /<a[^>]*href="(\/[A-Z]{2,8}-?\d{3,5}[^"]*)"[^>]*>/g;
-          let match;
-          let attempts = 0;
-          
-          while ((match = directPattern.exec(res)) !== null && attempts < 100) {
-            const url = match[1];
-            const code = url.replace(/^\//, '');
-            
-            if (!videos.some(v => v.url === url)) {
+            if (url && title) {
               videos.push({
-                title: code.toUpperCase().replace(/-/g, ' '),
+                title: title.trim(),
                 url: url,
-                cover: `https://pics.xjav.pro/cover/${code}_b.jpg`,
-                update: "Direct"
+                cover: cover,
+                update: duration
               });
-              console.log(`Direct found: ${code}`);
+              videoCount++;
+              console.log(`Found video ${videoCount}: ${title.trim().substring(0, 50)}`);
             }
-            attempts++;
             
-            if (videos.length >= 10) break;
+          } catch (containerError) {
+            console.error("Container error:", containerError);
+            continue;
           }
         }
         
-        // 如果没找到视频，使用fallback数据
+        console.log(`Parsed ${videos.length} videos using correct structure`);
+        
+        // 备用解析：如果没找到视频
         if (videos.length === 0) {
-          console.log("No videos found, using fallback data");
-          return [{
-            title: "SSIS-469 架乃ゆら",
-            url: "/SSIS-469",
-            cover: "https://pics.xjav.pro/cover/SSIS-469_b.jpg",
-            update: "New"
-          }];
+          console.log("Using fallback parsing...");
+          const fallbackPattern = /<a[^>]*href="(\/[A-Z0-9][A-Z0-9-]{3,}[^"]*)"[^>]*>/g;
+          let fallbackMatch;
+          let fallbackCount = 0;
+          
+          while ((fallbackMatch = fallbackPattern.exec(res)) !== null && fallbackCount < 20) {
+            const url = fallbackMatch[1];
+            const code = url.replace(/^\//, '').split('/')[0];
+            
+            if (code && code.length > 3 && !code.includes('search') && !code.includes('page')) {
+              videos.push({
+                title: code.toUpperCase(),
+                url: url,
+                cover: `https://pics.dmm.co.jp/digital/video/${code.toLowerCase()}/${code.toLowerCase()}pl.jpg`,
+                update: "Unknown"
+              });
+              fallbackCount++;
+            }
+          }
+          console.log(`Fallback found ${fallbackCount} videos`);
         }
         
       } catch (parseError) {
