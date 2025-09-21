@@ -352,60 +352,64 @@ export default class extends Extension {
 
   async detail(url) {
     try {
-      console.log("=== MISSAV DETAIL METHOD START v1.7 ===");
-      console.log("Detail method received arguments:", arguments.length);
-      for (let i = 0; i < arguments.length; i++) {
-        console.log(`Argument ${i}:`, arguments[i], `(type: ${typeof arguments[i]})`);
-      }
-      console.log("Parameter 'url':", url);
-      console.log("URL type:", typeof url);
+      console.log("=== MISSAV DETAIL METHOD START v1.8 ===");
+      console.log("Arguments count: " + arguments.length);
       
-      // 像bfzy.tv.js一样直接使用第一个参数
-      const id = arguments[0] || url;
-      console.log("Using parameter:", id);
-      let cleanUrl = id;
+      // 强制转换为字符串来避免console.log的问题
+      for (let i = 0; i < arguments.length; i++) {
+        const arg = arguments[i];
+        console.log("Arg[" + i + "]: '" + String(arg) + "' type:" + typeof arg);
+      }
+      
+      console.log("Named param 'url': '" + String(url) + "' type:" + typeof url);
+      
+      // 直接使用第一个参数，像bfzy.tv.js一样
+      const receivedParam = arguments[0];
+      console.log("Received param: '" + String(receivedParam) + "'");
+      
+      let cleanUrl = receivedParam;
       
       console.log("=== URL PROCESSING ===");
       
       // 检查URL参数
-      if (!id || id.length === 0 || id === 'undefined' || id === 'null') {
+      if (!receivedParam || receivedParam.length === 0 || receivedParam === 'undefined' || receivedParam === 'null') {
         console.log("⚠️ Empty/invalid URL detected, using test URL for debugging");
         cleanUrl = "/mbrbn-059";
-      } else if (id && typeof id === 'string') {
-        console.log("Processing URL:", id);
+      } else if (receivedParam && typeof receivedParam === 'string') {
+        console.log("Processing URL: '" + String(receivedParam) + "'");
         
         // 如果是完整URL，手动提取路径部分
-        if (id.startsWith('https://missav.ai')) {
+        if (receivedParam.startsWith('https://missav.ai')) {
           // 手动解析 https://missav.ai/path 格式
-          const pathStart = id.indexOf('/', 8); // 跳过 https://
+          const pathStart = receivedParam.indexOf('/', 8); // 跳过 https://
           if (pathStart !== -1) {
-            cleanUrl = id.substring(pathStart);
+            cleanUrl = receivedParam.substring(pathStart);
           } else {
             cleanUrl = '/';
           }
-          console.log("Extracted path from full URL:", cleanUrl);
-        } else if (id.startsWith('http')) {
+          console.log("Extracted path from full URL: '" + cleanUrl + "'");
+        } else if (receivedParam.startsWith('http')) {
           // 其他域名的完整URL，手动提取路径
           try {
-            const protocolEnd = id.indexOf('://');
+            const protocolEnd = receivedParam.indexOf('://');
             if (protocolEnd !== -1) {
-              const pathStart = id.indexOf('/', protocolEnd + 3);
+              const pathStart = receivedParam.indexOf('/', protocolEnd + 3);
               if (pathStart !== -1) {
-                cleanUrl = id.substring(pathStart);
+                cleanUrl = receivedParam.substring(pathStart);
               } else {
                 cleanUrl = '/';
               }
             } else {
-              cleanUrl = id;
+              cleanUrl = receivedParam;
             }
-            console.log("Extracted path from URL:", cleanUrl);
+            console.log("Extracted path from URL: '" + cleanUrl + "'");
           } catch (e) {
-            console.log("URL parsing failed, using as-is:", e);
-            cleanUrl = id;
+            console.log("URL parsing failed, using as-is: " + e);
+            cleanUrl = receivedParam;
           }
         } else {
           // 已经是路径格式，直接使用
-          cleanUrl = id;
+          cleanUrl = receivedParam;
         }
         
         // 解码URL编码
@@ -424,7 +428,7 @@ export default class extends Extension {
         }
       }
 
-      console.log("Final URL to use:", cleanUrl);
+      console.log("Final URL to use: '" + String(cleanUrl) + "'");
 
       const res = await this.request(cleanUrl, {
         headers: {
