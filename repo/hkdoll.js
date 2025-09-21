@@ -46,8 +46,8 @@ export default class extends Extension {
   }
 
   parseVideoList(html) {
-    // Updated regex to match the actual HTML structure
-    const regex = /<div class="video-item">[\s\S]*?<a[^>]+title="([^"]+)"[^>]+href="([^"]+)"[\s\S]*?(?:data-src="([^"]+)"|src="([^"]+)")[\s\S]*?<div class="duration">([^<]*)<\/div>/g;
+    // Updated regex to match the actual HTML structure - extract images separately
+    const regex = /<div class="video-item">[\s\S]*?<a[^>]+title="([^"]+)"[^>]+href="([^"]+)"[\s\S]*?<img[^>]*>[\s\S]*?<div class="duration">([^<]*)<\/div>/g;
     const matches = [...html.matchAll(regex)];
     
     const videos = [];
@@ -58,14 +58,30 @@ export default class extends Extension {
         url = url.replace('https://hongkongdollvideo.com', '');
       }
       
-      // Get cover image from either data-src or src
-      const cover = match[3] || match[4] || '';
+      // Extract the img tag from the matched content
+      const imgMatch = match[0].match(/<img[^>]*>/);
+      let cover = '';
+      
+      if (imgMatch) {
+        const imgTag = imgMatch[0];
+        // First try data-src (for lazy-loaded images)
+        const dataSrcMatch = imgTag.match(/data-src="([^"]+)"/);
+        if (dataSrcMatch) {
+          cover = dataSrcMatch[1];
+        } else {
+          // Fallback to src, but avoid base64 placeholders
+          const srcMatch = imgTag.match(/src="([^"]+)"/);
+          if (srcMatch && !srcMatch[1].startsWith('data:image')) {
+            cover = srcMatch[1];
+          }
+        }
+      }
       
       videos.push({
         url: url,
         title: match[1].trim(),
         cover: cover,
-        remarks: match[5].trim(),
+        remarks: match[3].trim(),
       });
     }
     
