@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         HKDoll
-// @version      v0.0.4
+// @version      v0.0.5
 // @author       YourName
 // @lang         zh-cn
 // @license      MIT
@@ -185,44 +185,75 @@ export default class extends Extension {
 
   decodeVideoUrl(param) {
     try {
-      // Extract key and encrypted config
+      // Extract key and encrypted config - Reference implementation approach
       const key = param.slice(-32);
       const encryptedConf = param.substring(0, param.length - 32);
       
       // Decrypt config using XOR
       const pageConfig = JSON.parse(this.xorDec(encryptedConf, key));
       
-      // Check if this site uses a different structure
-      if (pageConfig.player && pageConfig.player.embedUrl) {
-        // This site seems to provide the embed URL directly
-        const embedUrl = pageConfig.player.embedUrl;
-        console.log('Found embed URL:', embedUrl);
+      console.log('Decoded page config:', pageConfig);
+      
+      // Use the reference implementation's exact decryption logic
+      if (pageConfig.player && pageConfig.player.param && pageConfig.player.param.id) {
+        const videoId = pageConfig.player.param.id;
+        const embedURL = pageConfig.player.param.embedURL;
+        const arg = pageConfig.player.param.arg;
         
-        // Try to extract video ID from the embed URL
-        const videoIdMatch = embedUrl.match(/\/embed\/([^\/]+)/);
-        if (videoIdMatch) {
-          const videoId = videoIdMatch[1];
-          console.log('Extracted video ID:', videoId);
-          
-          // The embed URL itself might be the video source or lead to it
-          // For now, return the embed URL as it might work with the iframe player
-          return embedUrl;
-        }
+        console.log('Video ID:', videoId);
+        console.log('Embed URL:', embedURL);
+        
+        // Extract timestamp from embedURL (last 10 chars of the last path segment)
+        const lastSegment = embedURL.substring(embedURL.lastIndexOf('/') + 1);
+        const timestamp = lastSegment.slice(-10);
+        
+        console.log('Timestamp:', timestamp);
+        
+        // Generate decryption key exactly like reference implementation
+        const keyString = (videoId.toString() + '-' + timestamp.toString()).split('').reverse().join('');
+        const base64Key = this.base64Encode(keyString).replaceAll('=', '');
+        
+        console.log('Generated key string:', keyString);
+        console.log('Base64 key:', base64Key);
+        
+        // Decode final URL using the reference implementation's strDecode
+        const finalUrl = this.strDecode(arg, base64Key);
+        
+        console.log('Final decoded URL:', finalUrl);
+        return finalUrl;
       }
       
-      // Fallback to original method if available
-      if (pageConfig.player && pageConfig.player.param && pageConfig.player.param.id) {
-        const id = pageConfig.player.param.id;
-        const embedURL = pageConfig.player.param.embedURL;
-        const timestamp = embedURL.substring(embedURL.lastIndexOf('/') + 1).slice(-10);
+      // Check if this site uses a different structure (embedUrl only)
+      if (pageConfig.player && pageConfig.player.embedUrl) {
+        const embedUrl = pageConfig.player.embedUrl;
+        console.log('Found embed URL only:', embedUrl);
         
-        // Generate decryption key
-        const reverseKey = (id.toString() + '-' + timestamp.toString()).split('').reverse().join('');
-        const base64Key = this.base64Encode(reverseKey).replaceAll('=', '');
+        // Extract token from embed URL and try to decode it
+        const tokenMatch = embedUrl.match(/token=([^&]+)/);
+        const videoIdMatch = embedUrl.match(/\/embed\/([^\/\?]+)/);
         
-        // Decode final URL
-        const finalUrl = this.strDecode(pageConfig.player.param.arg, base64Key);
-        return finalUrl;
+        if (tokenMatch && videoIdMatch) {
+          const token = tokenMatch[1];
+          const videoId = videoIdMatch[1];
+          
+          console.log('Attempting to decode token from embed URL');
+          console.log('Token:', token.substring(0, 50) + '...');
+          console.log('Video ID:', videoId);
+          
+          // Try to decode the token using similar logic
+          try {
+            const decodedUrl = this.decodeEmbedToken(token, videoId);
+            if (decodedUrl) {
+              console.log('Successfully decoded video URL from embed token:', decodedUrl);
+              return decodedUrl;
+            }
+          } catch (error) {
+            console.log('Token decoding failed:', error.message);
+          }
+        }
+        
+        // Fallback to embed URL
+        return embedUrl;
       }
       
       console.log('No suitable player configuration found');
@@ -231,6 +262,215 @@ export default class extends Extension {
       console.error('Decode error:', error);
       return "";
     }
+  }
+  
+  decodeEmbedToken(token, videoId) {
+    // Dedicated method to decode embed URL tokens
+    try {
+      console.log('Decoding embed token...');
+      
+      const hexDecoded = this.hexToString(token);
+      
+      // Method 1: Use video ID as key and look for hex patterns (BREAKTHROUGH METHOD!)
+      try {
+        const result = this.xorDecode(hexDecoded, videoId);
+        console.log('Video ID XOR result (first 300 chars):', result.substring(0, 300));
+        
+        // Look for hex patterns in the result
+        const patterns = result.match(/[0-9a-f]{12,}/g);
+        if (patterns) {
+          console.log('Found hex patterns:');
+          for (const pattern of patterns) {
+            if (pattern.length >= 16) {
+              console.log(`  Testing pattern: ${pattern}`);
+              
+              // Use this pattern as key
+              try {
+                const patternKey = pattern.substring(0, 16);
+                const testResult = this.xorDecode(hexDecoded, patternKey);
+                
+                // Look for video URL
+                const urlMatch = testResult.match(/https?:\/\/[^\s'"<>]+\.(?:m3u8|mp4)[^\s'"<>]*/);
+                if (urlMatch) {
+                  console.log(`🎯 SUCCESS! Found video URL with pattern key "${patternKey}":`, urlMatch[0]);
+                  return urlMatch[0];
+                }
+                
+                // Also check if the result contains JSON with video info
+                try {
+                  // The result might be a JSON string
+                  const jsonMatch = testResult.match(/\{[^}]*"[^"]*"[^}]*\}/);
+                  if (jsonMatch) {
+                    const jsonResult = JSON.parse(jsonMatch[0]);
+                    if (jsonResult.url && jsonResult.url.includes('.m3u8')) {
+                      console.log(`🎯 SUCCESS! Found video URL in JSON:`, jsonResult.url);
+                      return jsonResult.url;
+                    }
+                  }
+                } catch (e) {
+                  // Continue searching
+                }
+              } catch (e) {
+                console.log(`  Pattern ${pattern} failed: ${e.message}`);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.log('Video ID method failed:', e.message);
+      }
+      
+      // Method 2: Try the same logic as __PAGE__PARAMS__
+      if (token.length > 32) {
+        const key = token.slice(-32);
+        const encryptedData = token.substring(0, token.length - 32);
+        
+        try {
+          const keyDecoded = this.hexToString(key);
+          const dataDecoded = this.hexToString(encryptedData);
+          const xorResult = this.xorDecode(dataDecoded, keyDecoded);
+          
+          // Look for JSON structure that might contain video info
+          try {
+            const jsonResult = JSON.parse(xorResult);
+            console.log('Parsed JSON from embed token:', jsonResult);
+            
+            // Look for video URL in various possible fields
+            if (jsonResult.url) return jsonResult.url;
+            if (jsonResult.src) return jsonResult.src;
+            if (jsonResult.file) return jsonResult.file;
+            if (jsonResult.video) return jsonResult.video;
+            if (jsonResult.stream) return jsonResult.stream;
+          } catch (e) {
+            // Not JSON, try to extract URLs directly
+            const urlMatch = xorResult.match(/https?:\/\/[^\s'"<>]+\.(?:m3u8|mp4)[^\s'"<>]*/);
+            if (urlMatch) {
+              console.log('Found URL in embed token XOR result:', urlMatch[0]);
+              return urlMatch[0];
+            }
+          }
+        } catch (e) {
+          console.log('Standard token decoding failed:', e.message);
+        }
+      }
+      
+      // Method 3: Try common domain keys
+      const domainKeys = ['hongkongdoll', 'video', 'embed', 'player', 'hkdoll'];
+      for (const key of domainKeys) {
+        try {
+          const result = this.xorDecode(hexDecoded, key);
+          const urlMatch = result.match(/https?:\/\/[^\s'"<>]+\.(?:m3u8|mp4)[^\s'"<>]*/);
+          if (urlMatch) {
+            console.log(`Found URL with domain key "${key}":`, urlMatch[0]);
+            return urlMatch[0];
+          }
+        } catch (e) {
+          // Continue
+        }
+      }
+      
+      console.log('No video URL found in embed token');
+      return null;
+    } catch (error) {
+      console.error('Embed token decoding error:', error);
+      return null;
+    }
+  }
+  
+  async decodeTokenUrl(token, videoId) {
+    // New method to decode token-based URLs
+    try {
+      console.log('Attempting token URL decoding...');
+      
+      // Method 1: Try standard key extraction (last 32 chars)
+      if (token.length > 32) {
+        const key = token.slice(-32);
+        const encryptedData = token.substring(0, token.length - 32);
+        
+        try {
+          const keyDecoded = this.hexToString(key);
+          const dataDecoded = this.hexToString(encryptedData);
+          const xorResult = this.xorDecode(dataDecoded, keyDecoded);
+          
+          // Look for JSON structure
+          const jsonMatch = xorResult.match(/\{[^}]*"[^"]*"[^}]*\}/);
+          if (jsonMatch) {
+            const jsonResult = JSON.parse(jsonMatch[0]);
+            if (jsonResult.url || jsonResult.src || jsonResult.file) {
+              console.log('Found video URL in token JSON:', jsonResult);
+              return jsonResult.url || jsonResult.src || jsonResult.file;
+            }
+          }
+        } catch (e) {
+          // Continue to next method
+        }
+      }
+      
+      // Method 2: Try video ID based keys
+      const videoIdKeys = [
+        videoId,
+        videoId.substring(0, 16),
+        'embed_' + videoId,
+        'player_' + videoId,
+        videoId + 'embed'
+      ];
+      
+      const hexDecoded = this.hexToString(token);
+      
+      for (const key of videoIdKeys) {
+        try {
+          const result = this.xorDecode(hexDecoded, key);
+          
+          // Look for HTTP URLs
+          const urlMatch = result.match(/https?:\/\/[^\s'"<>]+\.(?:m3u8|mp4)[^\s'"<>]*/);
+          if (urlMatch) {
+            console.log('Found video URL with key', key, ':', urlMatch[0]);
+            return urlMatch[0];
+          }
+        } catch (e) {
+          // Continue
+        }
+      }
+      
+      // Method 3: Try domain-based keys
+      const domainKeys = ['hongkongdoll', 'video', 'embed', 'player', 'hkdoll'];
+      
+      for (const key of domainKeys) {
+        try {
+          const result = this.xorDecode(hexDecoded, key);
+          
+          const urlMatch = result.match(/https?:\/\/[^\s'"<>]+\.(?:m3u8|mp4)[^\s'"<>]*/);
+          if (urlMatch) {
+            console.log('Found video URL with domain key', key, ':', urlMatch[0]);
+            return urlMatch[0];
+          }
+        } catch (e) {
+          // Continue
+        }
+      }
+      
+      console.log('Token decoding failed, no video URL found');
+      return null;
+    } catch (error) {
+      console.error('Token decoding error:', error);
+      return null;
+    }
+  }
+  
+  hexToString(hex) {
+    let result = '';
+    for (let i = 0; i < hex.length; i += 2) {
+      result += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    }
+    return result;
+  }
+  
+  xorDecode(data, key) {
+    let result = '';
+    for (let i = 0; i < data.length; i++) {
+      result += String.fromCharCode(data.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+    }
+    return result;
   }
 
   xorDec(hexString, key) {
@@ -248,7 +488,8 @@ export default class extends Extension {
   }
 
   strDecode(encodedString, key) {
-    // Base64 decode first
+    // Reference implementation's exact strDecode logic
+    // First base64 decode
     const decoded = this.base64Decode(encodedString);
     const keyLength = key.length;
     let result = '';
@@ -281,33 +522,98 @@ export default class extends Extension {
       return {
         type: "hls",
         url: actualUrl,
-        // Add a flag to indicate this should be opened in browser
         headers: {
           'User-Agent': this.UA
         }
       };
     }
     
-    // Handle embed URLs by converting them back to video page URLs
+    // Handle potential direct video URLs first
+    if (url.includes('.m3u8') || url.includes('.mp4')) {
+      console.log('Direct video URL detected:', url);
+      
+      // Try to validate the URL by making a head request
+      try {
+        const response = await this.request(url, {
+          method: 'HEAD',
+          headers: {
+            'User-Agent': this.UA,
+            'Accept-Encoding': 'identity'
+          }
+        });
+        
+        // If we get a successful response, use this URL
+        console.log('Direct video URL validated successfully');
+        return {
+          type: url.includes('.m3u8') ? "hls" : "mp4",
+          url: url,
+          headers: {
+            'User-Agent': this.UA
+          }
+        };
+      } catch (error) {
+        console.log('Direct video URL validation failed:', error.message);
+        // Continue to other methods
+      }
+    }
+    
+    // Handle embed URLs by extracting token and trying advanced decoding
     if (url.includes('/embed/')) {
       const videoIdMatch = url.match(/\/embed\/([^\/\?]+)/);
-      if (videoIdMatch) {
+      const tokenMatch = url.match(/token=([^&]+)/);
+      
+      if (videoIdMatch && tokenMatch) {
         const videoId = videoIdMatch[1];
-        const videoPageUrl = `https://hongkongdollvideo.com/video/${videoId}.html`;
-        console.log('Converting embed URL to video page:', videoPageUrl);
+        const token = tokenMatch[1];
         
-        // Try to get the actual video details again
-        try {
-          const details = await this.detail(videoPageUrl);
-          if (details.episodes?.[0]?.urls?.[0]?.url && 
-              !details.episodes[0].urls[0].url.includes('/embed/')) {
-            return await this.watch(details.episodes[0].urls[0].url);
-          }
-        } catch (error) {
-          console.log('Failed to re-fetch details:', error.message);
+        console.log('Attempting advanced token decoding for embed URL');
+        
+        // Try to decode the token for a direct video URL
+        const decodedUrl = await this.decodeTokenUrl(token, videoId);
+        if (decodedUrl) {
+          console.log('Successfully decoded video URL from token:', decodedUrl);
+          return await this.watch(decodedUrl); // Recursively process the decoded URL
         }
         
-        // Fallback to returning the video page URL
+        // If token decoding fails, try constructing potential URLs
+        const potentialUrls = [
+          `https://hongkongdollvideo.com/stream/${videoId}.m3u8`,
+          `https://hongkongdollvideo.com/hls/${videoId}/index.m3u8`,
+          `https://media.hongkongdollvideo.com/${videoId}.m3u8`,
+          `https://hongkongdollvideo.com/files/${videoId}/playlist.m3u8`,
+          `https://cdn.hongkongdollvideo.com/${videoId}.m3u8`
+        ];
+        
+        // Try each potential URL
+        for (const potentialUrl of potentialUrls) {
+          try {
+            console.log('Trying potential URL:', potentialUrl);
+            const response = await this.request(potentialUrl, {
+              method: 'HEAD',
+              headers: {
+                'User-Agent': this.UA,
+                'Accept-Encoding': 'identity'
+              }
+            });
+            
+            console.log('✓ Found working video URL:', potentialUrl);
+            return {
+              type: "hls",
+              url: potentialUrl,
+              headers: {
+                'User-Agent': this.UA
+              }
+            };
+          } catch (error) {
+            console.log('Failed URL:', potentialUrl, error.message);
+            // Continue to next URL
+          }
+        }
+        
+        // If no direct URLs work, fall back to video page
+        const videoPageUrl = `https://hongkongdollvideo.com/video/${videoId}.html`;
+        console.log('All direct URLs failed, falling back to video page:', videoPageUrl);
+        
         return {
           type: "hls",
           url: videoPageUrl,
@@ -316,27 +622,6 @@ export default class extends Extension {
           }
         };
       }
-    }
-    
-    // For direct video URLs
-    if (url.includes('.m3u8')) {
-      return {
-        type: "hls",
-        url: url,
-        headers: {
-          'User-Agent': this.UA
-        }
-      };
-    }
-    
-    if (url.includes('.mp4')) {
-      return {
-        type: "mp4",
-        url: url,
-        headers: {
-          'User-Agent': this.UA
-        }
-      };
     }
     
     // For any other URL, assume it's a video page that needs browser handling
