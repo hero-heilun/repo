@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         MISSAV
-// @version      v0.0.4
+// @version      v0.0.5
 // @author       jason
 // @lang         all
 // @license      MIT
@@ -313,30 +313,30 @@ export default class extends Extension {
       const url = `/search/${encodeURIComponent(keyword)}?page=${page}`;
       console.log("Search URL:", url);
 
-      let res; // Declare res with let so it can be reassigned
-
-      try {
-        res = await this.request(url, {
-          headers: {
-                   "User-Agent": this.userAgent,
-                   "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-                   "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-                   "Accept-Encoding": "gzip, deflate, br",
-                   "Cache-Control": "no-cache",
-                   "Pragma": "no-cache",
-                   "Sec-Fetch-Dest": "document",
-                   "Sec-Fetch-Mode": "navigate",
-                   "Sec-Fetch-Site": "none",
-                   "Sec-Fetch-User": "?1",
-                   "Upgrade-Insecure-Requests": "1"
-          }
-        });
-        console.log("res value after initial request:", res);
-        if (res === null || typeof res === 'undefined') {
-          console.log("res is null or undefined after initial request.");
+      let res = await this.request(url, {
+        headers: {
+                 "User-Agent": this.userAgent,
+                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+                 "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                 "Accept-Encoding": "gzip, deflate, br",
+                 "Cache-Control": "no-cache",
+                 "Pragma": "no-cache",
+                 "Sec-Fetch-Dest": "document",
+                 "Sec-Fetch-Mode": "navigate",
+                 "Sec-Fetch-Site": "none",
+                 "Sec-Fetch-User": "?1",
+                 "Upgrade-Insecure-Requests": "1"
         }
-      } catch (error) {
-        console.log("Initial request failed, likely Cloudflare. Error:", error.message);
+      });
+
+      console.log("res value after initial request:", res);
+      if (res === null || typeof res === 'undefined') {
+        console.log("res is null or undefined after initial request.");
+      }
+
+      // 检查是否遇到Cloudflare保护
+      if (res.includes('Just a moment...') || res.includes('cloudflare')) {
+        console.log("Cloudflare detected, trying alternative approach...");
         const alternativeRes = await this.handleCloudflare(url);
         console.log("alternativeRes value:", alternativeRes);
         if (alternativeRes === null || typeof alternativeRes === 'undefined') {
@@ -344,8 +344,6 @@ export default class extends Extension {
         }
         if (alternativeRes) {
           res = alternativeRes;
-        } else {
-          throw new Error("Failed to get content after Cloudflare bypass attempt.");
         }
       }
 
