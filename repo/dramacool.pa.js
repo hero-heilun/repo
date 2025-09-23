@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.3
+// @version      v0.0.4
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -48,6 +48,17 @@ export default class extends Extension {
     });
   }
 
+  // Safe wrapper for getSetting to avoid null check errors
+  async safeGetSetting(key, defaultValue) {
+    try {
+      const value = await this.getSetting(key);
+      return value !== null && value !== undefined ? value : defaultValue;
+    } catch (error) {
+      console.warn(`Failed to get setting ${key}, using default:`, defaultValue);
+      return defaultValue;
+    }
+  }
+
   async createFilter() {
     // Return empty filter as DramaCool doesn't need complex filtering
     return {};
@@ -55,9 +66,9 @@ export default class extends Extension {
 
   async latest() {
     try {
-      // Get user settings
-      this.useProxy = await this.getSetting("useProxy");
-      this.proxyUrl = await this.getSetting("proxyUrl");
+      // Get user settings safely
+      this.useProxy = await this.safeGetSetting("useProxy", true);
+      this.proxyUrl = await this.safeGetSetting("proxyUrl", "https://proxy.techzbots1.workers.dev/?u=");
       
       console.log("Fetching latest dramas from:", this.baseUrl);
       console.log("Using proxy:", this.useProxy);
@@ -141,9 +152,9 @@ export default class extends Extension {
 
   async detail(url) {
     try {
-      // Get user settings
-      this.useProxy = await this.getSetting("useProxy");
-      this.proxyUrl = await this.getSetting("proxyUrl");
+      // Get user settings safely
+      this.useProxy = await this.safeGetSetting("useProxy", true);
+      this.proxyUrl = await this.safeGetSetting("proxyUrl", "https://proxy.techzbots1.workers.dev/?u=");
       
       // Try to access drama detail page directly
       const detailUrl = `${this.baseUrl}/drama-detail/${url}`;
@@ -232,9 +243,9 @@ export default class extends Extension {
         return [];
       }
       
-      // Get user settings
-      this.useProxy = await this.getSetting("useProxy");
-      this.proxyUrl = await this.getSetting("proxyUrl");
+      // Get user settings safely
+      this.useProxy = await this.safeGetSetting("useProxy", true);
+      this.proxyUrl = await this.safeGetSetting("proxyUrl", "https://proxy.techzbots1.workers.dev/?u=");
       
       const searchUrl = `${this.baseUrl}/search/keyword/${encodeURIComponent(kw.trim())}`;
       const res = await this.req(searchUrl);
@@ -295,9 +306,9 @@ export default class extends Extension {
 
   async watch(url) {
     try {
-      // Get user settings
-      this.useProxy = await this.getSetting("useProxy");
-      this.proxyUrl = await this.getSetting("proxyUrl");
+      // Get user settings safely
+      this.useProxy = await this.safeGetSetting("useProxy", true);
+      this.proxyUrl = await this.safeGetSetting("proxyUrl", "https://proxy.techzbots1.workers.dev/?u=");
       
       // Access the video watch page directly
       const watchUrl = `${this.baseUrl}/video-watch/${url}`;
