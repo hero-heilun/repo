@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.5
+// @version      v0.0.6
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -112,7 +112,7 @@ export default class extends Extension {
           console.log(title+"1111"+cover+"1111"+url)
           novel.push({
             title,
-            url: url.replace("/drama-detail/", ""),
+            url: url.replace("https://dramacool.com.bz/drama-detail/", ""),
             cover,
           });
         }
