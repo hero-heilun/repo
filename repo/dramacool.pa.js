@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.3
+// @version      v0.0.4
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -148,7 +148,7 @@ export default class extends Extension {
              episodes.push({ title: "Episodes", urls: episodeUrls.reverse() });
            }
          }
-   
+         console.log("title"+title+"title"+cover+"title"+desc);
          return {
            title: String(titleElement?.text || ""),
            cover: String((coverElement && await this.getAttributeText(coverElement.content || res, "img", "src")) || ""),
