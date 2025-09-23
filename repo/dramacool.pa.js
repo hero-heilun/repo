@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.3
+// @version      v0.0.4
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -143,11 +143,19 @@ export default class extends Extension {
         }
         console.log("Desc regex result: " + (desc ? "found" : "null"));
         
-        // Extract cover using regex
+        // Extract cover using regex - try multiple patterns
         let cover = "";
-        const coverMatch = res.match(/<img[^>]*src="([^"]*drama[^"]*\.(?:jpg|jpeg|png|webp))"[^>]*>/);
+        
+        // Try drama-specific image first
+        let coverMatch = res.match(/<img[^>]*src="([^"]*storage\/drama[^"]*\.(?:jpg|jpeg|png|webp))"[^>]*>/);
         if (coverMatch) {
           cover = coverMatch[1];
+        } else {
+          // Try any image with reasonable size/format
+          coverMatch = res.match(/<img[^>]*src="([^"]*\.(?:jpg|jpeg|png|webp))"[^>]*(?:width|height)="[^"]*"[^>]*>/);
+          if (coverMatch && !coverMatch[1].includes('logo') && !coverMatch[1].includes('button')) {
+            cover = coverMatch[1];
+          }
         }
         console.log("Cover regex result: " + (cover ? cover : "null"));
         
@@ -168,21 +176,34 @@ export default class extends Extension {
             const epUrl = episodeMatch[1];
             const epHtml = episodeMatch[2];
             
-            // Extract episode ID from URL
-            const urlMatch = epUrl.match(/video-watch\/(.+)/);
-            if (urlMatch) {
-              // Extract episode name from the link HTML
+            // Extract episode ID from URL (handle both relative and absolute URLs)
+            let episodeId = "";
+            if (epUrl.includes("video-watch/")) {
+              const urlMatch = epUrl.match(/video-watch\/(.+)/);
+              if (urlMatch) {
+                episodeId = urlMatch[1];
+              }
+            }
+            
+            if (episodeId) {
+              // Extract episode name from the link HTML  
               let epName = "";
               const nameMatch = epHtml.match(/>([^<]*Episode[^<]*)</);
               if (nameMatch) {
                 epName = nameMatch[1].trim();
               } else {
-                epName = `Episode ${episodeCount + 1}`;
+                // Try to extract episode number from URL
+                const epNumMatch = episodeId.match(/episode-(\d+)/);
+                if (epNumMatch) {
+                  epName = `Episode ${epNumMatch[1]}`;
+                } else {
+                  epName = `Episode ${episodeCount + 1}`;
+                }
               }
               
               episodeUrls.push({
                 name: String(epName),
-                url: String(urlMatch[1])
+                url: String(episodeId)
               });
               episodeCount++;
             }
