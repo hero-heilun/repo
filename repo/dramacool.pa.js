@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.7
+// @version      v0.0.9
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -311,27 +311,27 @@ export default class extends Extension {
         
         console.log("Server URLs found: " + serverUrls.length);
         
-        // Try Doodstream servers first
+        // Prioritize non-Doodstream servers first (avoid cookie issues)
+        for (const serverUrl of serverUrls) {
+          if (!serverUrl.includes('dood')) {
+            console.log("Using non-Doodstream server (direct): " + serverUrl);
+            return { type: 'mp4', url: serverUrl };
+          }
+        }
+        
+        // If only Doodstream available, try extraction (but this may have cookie issues)
         for (const serverUrl of serverUrls) {
           if (serverUrl.includes('dood')) {
             try {
-              console.log("Trying Doodstream URL: " + serverUrl);
+              console.log("Trying Doodstream extraction (last resort): " + serverUrl);
               const directUrl = await this._getDoodstreamUrl(serverUrl, watchUrl);
               if (directUrl) {
-                console.log("Doodstream success, returning HLS URL");
+                console.log("Doodstream success: " + directUrl);
                 return { type: 'hls', url: directUrl };
               }
             } catch (e) {
               console.warn("Doodstream extraction failed: " + e.message);
             }
-          }
-        }
-
-        // Try other servers as iframe fallback
-        for (const serverUrl of serverUrls) {
-          if (!serverUrl.includes('dood')) {
-            console.log("Using iframe fallback: " + serverUrl);
-            return { type: 'iframe', url: serverUrl };
           }
         }
 
@@ -351,12 +351,14 @@ export default class extends Extension {
           const doodApiUrl = url.match(/https:\/\/[^\/]+/) + md5Path;
           const apiRes = await this.req(doodApiUrl, { headers: { Referer: url } });
           
-          // Clean the API response to avoid cookie formatting issues
+          // Clean the API response to avoid formatting issues
           const cleanApiRes = String(apiRes).trim().replace(/[^\x20-\x7E]/g, '');
           console.log("Doodstream API response length: " + apiRes.length + " cleaned: " + cleanApiRes.length);
           
           if (cleanApiRes && cleanApiRes.length > 0) {
-            return cleanApiRes + 'z';
+            const finalUrl = cleanApiRes + 'z';
+            console.log("Final video URL: " + finalUrl);
+            return finalUrl;
           }
         }
       } catch (error) {
