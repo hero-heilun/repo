@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.1
+// @version      v0.0.2
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -124,8 +124,13 @@ export default class extends Extension {
         console.log("Detail parsing started for: " + String(url));
 
         const titleElement = await this.querySelector(res, "h1");
+        console.log("titleElement result: " + (titleElement ? "found" : "null"));
+        
         const descElement = await this.querySelector(res, ".info");
+        console.log("descElement result: " + (descElement ? "found" : "null"));
+        
         const coverSrc = await this.getAttributeText(res, ".img > img", "src");
+        console.log("coverSrc result: " + (coverSrc ? coverSrc : "null"));
 
         const title = titleElement && titleElement.text ? String(titleElement.text) : "";
         const desc = descElement && descElement.text ? String(descElement.text) : "";
@@ -134,6 +139,8 @@ export default class extends Extension {
         console.log("Basic info - Title: " + (title ? "Found" : "Not found") + ", Cover: " + (cover ? "Found" : "Not found"));
         
         const episodeElements = await this.querySelectorAll(res, "ul.all-episode > li > a");
+        console.log("episodeElements result: " + (episodeElements ? episodeElements.length : "null"));
+        
         const episodes = [];
         
         if (episodeElements && episodeElements.length > 0) {
