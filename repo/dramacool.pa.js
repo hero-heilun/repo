@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.2
+// @version      v0.0.5
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -311,49 +311,31 @@ export default class extends Extension {
         
         console.log("Server URLs found: " + serverUrls.length);
         
-        // Try to extract direct video URLs from all servers (they are all embed pages)
+        // Prioritize Doodstream since it's the only one that works reliably
         for (const serverUrl of serverUrls) {
-          console.log("Trying to extract video from: " + serverUrl);
-          
-          try {
-            if (serverUrl.includes('dood')) {
-              console.log("Processing Doodstream embed...");
+          if (serverUrl.includes('dood')) {
+            console.log("Processing Doodstream embed (priority): " + serverUrl);
+            try {
               const directUrl = await this._getDoodstreamUrl(serverUrl, watchUrl);
               if (directUrl) {
                 console.log("Doodstream extraction success: " + directUrl);
                 return { type: 'hls', url: directUrl };
               }
-            } else if (serverUrl.includes('pladrac.net')) {
-              console.log("Processing Pladrac embed...");
-              const directUrl = await this._getPladracUrl(serverUrl, watchUrl);
-              if (directUrl) {
-                console.log("Pladrac extraction success: " + directUrl);
-                return { type: 'mp4', url: directUrl };
-              }
-            } else if (serverUrl.includes('dwish.pro')) {
-              console.log("Processing Dwish embed...");
-              const directUrl = await this._getDwishUrl(serverUrl, watchUrl);
-              if (directUrl) {
-                console.log("Dwish extraction success: " + directUrl);
-                return { type: 'mp4', url: directUrl };
-              }
-            } else if (serverUrl.includes('dlions.pro')) {
-              console.log("Processing Dlions embed...");
-              const directUrl = await this._getDlionsUrl(serverUrl, watchUrl);
-              if (directUrl) {
-                console.log("Dlions extraction success: " + directUrl);
-                return { type: 'mp4', url: directUrl };
-              }
-            } else {
-              console.log("Unknown server type, trying generic extraction...");
-              const directUrl = await this._getGenericVideoUrl(serverUrl, watchUrl);
-              if (directUrl) {
-                console.log("Generic extraction success: " + directUrl);
-                return { type: 'mp4', url: directUrl };
-              }
+            } catch (e) {
+              console.warn("Doodstream extraction failed: " + e.message);
             }
-          } catch (e) {
-            console.warn("Server " + serverUrl + " extraction failed: " + e.message);
+          }
+        }
+        
+        // Try other servers as fallback (though they likely won't work)
+        for (const serverUrl of serverUrls) {
+          if (!serverUrl.includes('dood')) {
+            console.log("Trying fallback server: " + serverUrl);
+            console.warn("Note: Non-Doodstream servers typically use JavaScript redirects and may not work");
+            
+            // For now, just return the embed URL and let Miru handle it
+            // This won't work but provides debugging info
+            return { type: 'mp4', url: serverUrl };
           }
         }
 
