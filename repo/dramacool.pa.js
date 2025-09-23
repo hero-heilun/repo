@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.8
+// @version      v0.0.1
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -121,7 +121,7 @@ export default class extends Extension {
         const detailUrl = `${this.baseUrl}/drama-detail/${url}`;
         const res = await this.req(detailUrl);
         
-        console.log("Detail parsing started for:", String(url));
+        console.log("Detail parsing started for: " + String(url));
 
         const titleElement = await this.querySelector(res, "h1");
         const descElement = await this.querySelector(res, ".info");
@@ -131,13 +131,13 @@ export default class extends Extension {
         const desc = descElement && descElement.text ? String(descElement.text) : "";
         const cover = coverSrc ? String(coverSrc) : "";
         
-        console.log("Basic info - Title:", title ? "Found" : "Not found", "Cover:", cover ? "Found" : "Not found");
+        console.log("Basic info - Title: " + (title ? "Found" : "Not found") + ", Cover: " + (cover ? "Found" : "Not found"));
         
         const episodeElements = await this.querySelectorAll(res, "ul.all-episode > li > a");
         const episodes = [];
         
         if (episodeElements && episodeElements.length > 0) {
-          console.log("Found episodes:", episodeElements.length);
+          console.log("Found episodes: " + episodeElements.length);
           const episodeUrls = [];
           
           for (let i = 0; i < episodeElements.length; i++) {
@@ -158,7 +158,7 @@ export default class extends Extension {
                 }
               }
             } catch (epError) {
-              console.warn("Episode parse error at index", i, ":", epError.message);
+              console.warn("Episode parse error at index " + i + ": " + epError.message);
             }
           }
           
@@ -167,7 +167,7 @@ export default class extends Extension {
           }
         }
         
-        console.log("Detail parsing completed - Episodes:", episodes.length > 0 ? episodes[0].urls.length : 0);
+        console.log("Detail parsing completed - Episodes: " + (episodes.length > 0 ? episodes[0].urls.length : 0));
         
         return {
           title: String(title),
