@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.2
+// @version      v0.0.3
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -125,9 +125,9 @@ export default class extends Extension {
          const detailUrl = `${this.baseUrl}/drama-detail/${url}`;
          const res = await this.req(detailUrl);
    
-         const titleElement = await this.querySelector(res, "h1") || await this.querySelector(res, ".drama-title");
-         const descElement = await this.querySelector(res, ".info") || await this.querySelector(res, ".description");
-         const coverElement = await this.querySelector(res, ".img > img") || await this.querySelector(res, ".drama-poster img");
+         const titleElement = (await this.querySelector(res, "h1")) || (await this.querySelector(res, ".drama-title"));
+         const descElement = (await this.querySelector(res, ".info")) || (await this.querySelector(res, ".description"));
+         const coverElement = (await this.querySelector(res, ".img > img")) || (await this.querySelector(res, ".drama-poster img"));
    
          const episodeElements = await this.querySelectorAll(res, "ul.all-episode > li > a");
          const episodes = [];
@@ -151,7 +151,7 @@ export default class extends Extension {
    
          return {
            title: String(titleElement?.text || ""),
-           cover: String(await coverElement?.getAttributeText("src") || ""),
+           cover: String((coverElement && await this.getAttributeText(coverElement.content || res, "img", "src")) || ""),
            desc: String(descElement?.text || ""),
            episodes,
          };
