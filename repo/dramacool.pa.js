@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.9
+// @version      v0.0.5
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -23,7 +23,7 @@ export default class extends Extension {
     };
   }
 
-  async req(url, options) {
+  async req(url) {
     // Use proxy for better mobile compatibility and CORS bypass
     const finalUrl = this.useProxy ? this.proxyUrl + encodeURIComponent(url) : url;
     return this.request(finalUrl, {
@@ -31,7 +31,6 @@ export default class extends Extension {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.5",
-        ...options?.headers
       },
     });
   }
@@ -44,10 +43,10 @@ export default class extends Extension {
       description: "Enable proxy for better mobile access and CORS bypass",
       defaultValue: true,
     });
-    
+
     this.registerSetting({
       title: "Proxy URL",
-      key: "proxyUrl", 
+      key: "proxyUrl",
       type: "input",
       description: "Proxy service URL (change only if needed)",
       defaultValue: "https://proxy.techzbots1.workers.dev/?u=",
@@ -59,7 +58,7 @@ export default class extends Extension {
     if (this.settingsLoaded) {
       return;
     }
-    
+
     try {
       // Try to load settings, but don't fail if they don't exist
       try {
@@ -71,7 +70,7 @@ export default class extends Extension {
         console.warn("Using default useProxy setting");
         this.useProxy = this.defaultSettings.useProxy;
       }
-      
+
       try {
         const proxyUrlSetting = await this.getSetting("proxyUrl");
         if (proxyUrlSetting !== null && proxyUrlSetting !== undefined) {
@@ -81,8 +80,9 @@ export default class extends Extension {
         console.warn("Using default proxyUrl setting");
         this.proxyUrl = this.defaultSettings.proxyUrl;
       }
-      
+
       this.settingsLoaded = true;
+      console.log(`Settings loaded: useProxy=${this.useProxy}, proxyUrl=${this.proxyUrl}`);
     } catch (error) {
       console.warn("Failed to load settings, using defaults:", error);
       this.useProxy = this.defaultSettings.useProxy;
@@ -104,15 +104,13 @@ export default class extends Extension {
     for (const element of bsxList) {
       const html = await element.content;
       const url = await this.getAttributeText(html, "a", "href");
-      const title = (await this.querySelector(html, "h3"))?.text;
-      const cover = await this.getAttributeText(html, "img", "data-original");
-      if(url) {
-        novel.push({
-            title,
-            url: url.replace("/drama-detail/", ""),
-            cover,
-        });
-      }
+      const title = await this.querySelector(html, "h3").text;
+      const cover = await this.querySelector(html, "img").getAttributeText("data-original");
+      novel.push({
+        title,
+        url: url.replace("/drama-detail/", ""),
+        cover,
+      });
     }
     return novel;
   }
@@ -124,10 +122,11 @@ export default class extends Extension {
       const res = await this.req(detailUrl);
 
       if (res.includes("Attempt to read property") || res.includes("error")) {
+        console.warn(`Drama detail page error for ${url}, trying alternative approach`);
         return {
           title: url.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
           cover: "",
-          desc: "Drama details are currently unavailable.",
+          desc: "Drama details are currently unavailable. This may be a temporary issue with the website.",
           episodes: [],
         };
       }
@@ -137,10 +136,14 @@ export default class extends Extension {
         await this.querySelector(res, "title");
 
       const descElement = await this.querySelector(res, ".info") ||
-        await this.querySelector(res, ".description");
+        await this.querySelector(res, ".description") ||
+        await this.querySelector(res, ".synopsis") ||
+        await this.querySelector(res, ".summary");
 
       const coverElement = await this.querySelector(res, ".img > img") ||
-        await this.querySelector(res, ".drama-poster img");
+        await this.querySelector(res, ".drama-poster img") ||
+        await this.querySelector(res, ".poster img") ||
+        await this.querySelector(res, "img[alt*='poster']");
 
       const episodeElements = await this.querySelectorAll(res, "ul.all-episode > li > a");
 
@@ -172,9 +175,10 @@ export default class extends Extension {
       }
 
       return {
-        title: titleElement?.text || "",
-        cover: await coverElement?.getAttributeText("src") || "",
-        desc: descElement?.text || "",
+        title: await titleElement?.text || url.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        cover: await coverElement?.getAttributeText("src") ||
+          await coverElement?.getAttributeText("data-src") || "",
+        desc: await descElement?.text || "No description available.",
         episodes,
       };
     } catch (error) {
@@ -182,7 +186,7 @@ export default class extends Extension {
       return {
         title: url.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
         cover: "",
-        desc: "Failed to load details.",
+        desc: "Failed to load details. The service may be temporarily unavailable.",
         episodes: [],
       };
     }
@@ -190,29 +194,65 @@ export default class extends Extension {
 
   async search(kw, page) {
     try {
+      // Validate search keyword
+      if (!kw || kw.trim() === '') {
+        console.warn("Search keyword is empty");
+        return [];
+      }
+
+      // Load settings once
       await this.loadSettings();
+
       const searchUrl = `${this.baseUrl}/search?type=drama&keyword=${encodeURIComponent(kw.trim())}`;
       const res = await this.req(searchUrl);
-      
-      const resultElements = await this.querySelectorAll(res, ".drama-list li");
-      
+
+      // Look for search results with multiple possible selectors
+      const resultElements = await this.querySelectorAll(res, ".drama-list li") ||
+                           await this.querySelectorAll(res, ".search-results .item") ||
+                           await this.querySelectorAll(res, ".movie-item") ||
+                           await this.querySelectorAll(res, "ul.switch-block li");
+
       const results = [];
       for (const element of resultElements) {
-        const html = element.content;
-        const url = await this.getAttributeText(html, "a", "href");
-        const title = (await this.querySelector(html, "h3"))?.text;
-        const cover = await this.getAttributeText(html, "img", "data-original");
-        
-        if (url && title) {
-            let dramaId = url.includes("/drama-detail/") ? url.split("/drama-detail/")[1] : url;
+        try {
+          const html = element.content;
+
+          const url = await this.getAttributeText(html, "a", "href");
+          const title = await this.querySelector(html, "h3")?.text ||
+                       await this.getAttributeText(html, "a", "title");
+          const cover = await this.getAttributeText(html, "img", "data-original") ||
+                       await this.getAttributeText(html, "img", "data-src") ||
+                       await this.getAttributeText(html, "img", "src");
+
+          // Validate title
+          if (!title || title.trim() === '') {
+            continue;
+          }
+
+          if (url && title) {
+            // Extract drama ID from URL
+            let dramaId = url;
+            if (url.includes("/drama-detail/")) {
+              dramaId = url.split("/drama-detail/")[1];
+            } else if (url.includes("/video-watch/")) {
+              const match = url.match(/video-watch\/(.+?)-episode-/);
+              if (match) {
+                dramaId = match[1];
+              }
+            }
+
             results.push({
               title: title.trim(),
-              url: dramaId,
+              url: dramaId || "",
               cover: cover || '',
             });
+          }
+        } catch (itemError) {
+          console.warn("Error processing search item:", itemError);
+          continue;
         }
       }
-      
+
       return results;
     } catch (error) {
       console.error(`Search error for "${kw}":`, error);
@@ -222,57 +262,83 @@ export default class extends Extension {
 
   async watch(url) {
     try {
+      // Load settings once
       await this.loadSettings();
+
+      // Access the video watch page directly
       const watchUrl = `${this.baseUrl}/video-watch/${url}`;
       const res = await this.req(watchUrl);
 
+      // Look for DramaCool's specific data-video attribute
       const serverElements = await this.querySelectorAll(res, "li[data-video]");
-      const serverUrls = [];
+
       for (const serverElement of serverElements) {
-        let videoUrl = await this.getAttributeText(serverElement.content, "li", "data-video");
+        const serverHtml = await serverElement.content;
+        const videoUrl = await this.getAttributeText(serverHtml, "li", "data-video");
+
         if (videoUrl) {
-          if (videoUrl.startsWith('//')) {
-            videoUrl = 'https:' + videoUrl;
-          }
-          serverUrls.push(videoUrl);
+          return {
+            type: "iframe",
+            url: videoUrl,
+          };
         }
       }
 
-      for (const serverUrl of serverUrls) {
-        if (serverUrl.includes('dood')) {
-          try {
-            const directUrl = await this._getDoodstreamUrl(serverUrl, watchUrl);
-            if (directUrl) {
-              return { type: 'hls', url: directUrl };
-            }
-          } catch (e) {
-            console.warn(`Doodstream extraction failed: ${e.message}`);
-          }
+      // Check for iframe sources as fallback
+      const iframes = await this.querySelectorAll(res, "iframe");
+
+      for (const iframe of iframes) {
+        const iframeHtml = await iframe.content;
+        const src = await this.getAttributeText(iframeHtml, "iframe", "src");
+
+        if (src && (src.includes("vidbasic") || src.includes("streamtape") || src.includes("mixdrop") || src.includes("doodstream"))) {
+          return {
+            type: "iframe",
+            url: src,
+          };
         }
       }
 
-      for (const serverUrl of serverUrls) {
-        if (!serverUrl.includes('dood')) {
-           return { type: 'iframe', url: serverUrl };
+      // Look for direct video links
+      const videoElements = await this.querySelectorAll(res, "video source") ||
+                           await this.querySelectorAll(res, "video");
+
+      for (const video of videoElements) {
+        const videoHtml = await video.content;
+        const src = await this.getAttributeText(videoHtml, "source", "src") ||
+                   await this.getAttributeText(videoHtml, "video", "src");
+
+        if (src) {
+          return {
+            type: src.includes(".m3u8") ? "hls" : "mp4",
+            url: src,
+          };
+        }
+      }
+
+      // Look for embedded player scripts
+      const scripts = await this.querySelectorAll(res, "script");
+      for (const script of scripts) {
+        const scriptHtml = await script.content;
+        const scriptText = await this.querySelector(scriptHtml, "script").text;
+
+        // Look for common video URL patterns
+        const urlMatches = scriptText.match(/(?:file|src|url|data-video):\s*["']([^"']+)[^"']*["']/i);
+        if (urlMatches) {
+          const videoUrl = urlMatches[1];
+          if (videoUrl.includes("http") && (videoUrl.includes("embed") || videoUrl.includes("player"))) {
+            return {
+              type: "iframe",
+              url: videoUrl,
+            };
+          }
         }
       }
 
       throw new Error('No video sources found on the page');
     } catch (error) {
       console.error(`Watch error for "${url}":`, error);
-      throw new Error(`Failed to load video: ${error.message}.`);
+      throw new Error(`Failed to load video: ${error.message}. The video may not be available or requires a different player.`);
     }
-  }
-
-  async _getDoodstreamUrl(url, referer) {
-    const res = await this.req(url, { headers: { Referer: referer } });
-    const md5Match = res.match(///pass_md5/([^"]+)/);
-    if (md5Match) {
-      const md5Path = "/pass_md5/" + md5Match[1];
-      const doodApiUrl = url.match(/https:\/\/[^\/]+/) + md5Path;
-      const apiRes = await this.req(doodApiUrl, { headers: { Referer: url } });
-      return apiRes + 'z'; // Append 'z' to get the full URL
-    }
-    return null;
   }
 }
