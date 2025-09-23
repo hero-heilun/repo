@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.5
+// @version      v0.0.6
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -48,6 +48,11 @@ export default class extends Extension {
     });
   }
 
+  async createFilter() {
+    // Return empty filter as DramaCool doesn't need complex filtering
+    return {};
+  }
+
   async latest() {
     try {
       // Get user settings
@@ -78,6 +83,11 @@ export default class extends Extension {
             title = h3Element.text;
           } else {
             title = await this.getAttributeText(html, "a", "title");
+          }
+          
+          // Ensure title is not null or empty
+          if (!title || title.trim() === '') {
+            continue;
           }
           
           const cover = await this.getAttributeText(html, "img", "data-original") || 
@@ -111,7 +121,7 @@ export default class extends Extension {
             
             novel.push({
               title: title.trim(),
-              url: dramaId,
+              url: dramaId || "",
               cover: cover || "",
             });
           }
