@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.4
+// @version      v0.0.5
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -97,42 +97,32 @@ export default class extends Extension {
   }
 
    async latest() {
-      const res = await this.request("", {
-        headers: {
-          "Miru-Url": "https://dramacool.bg/all-most-popular-drama",
-        },
+    await this.loadSettings();
+    const res = await this.req(`${this.baseUrl}/all-most-popular-drama`);
+    const bsxList = await this.querySelectorAll(res, "ul.switch-block.list-episode-item > li");
+    const novel = [];
+    for (const element of bsxList) {
+      const html = await element.content;
+      const url = await this.getAttributeText(html, "a", "href");
+      const title = await this.querySelector(html, "h3").text;
+      const cover = await this.querySelector(html, "img").getAttributeText("data-original");
+      novel.push({
+        title,
+        url: url.replace("/drama-detail/", ""),
+        cover,
       });
-      const bsxList = await this.querySelectorAll(res, "ul.switch-block.list-episode-item > li");
-      const novel = [];
-      for (const element of bsxList) {
-        const html = await element.content;
-        const url = await this.getAttributeText(html, "a", "href");
-        const title = await this.querySelector(html, "h3").text;
-        const cover = await this.querySelector(html, "img").getAttributeText("data-original");
-        //console.log(title+cover+url)
-        novel.push({
-          title,
-          url: url.replace("https://dramacool.bg/", ""),
-          cover,
-        });
-      }
-      return novel;
     }
+    return novel;
+  }
 
   async detail(url) {
     try {
-      // Load settings once
       await this.loadSettings();
-      
-      // Try to access drama detail page directly
       const detailUrl = `${this.baseUrl}/drama-detail/${url}`;
       const res = await this.req(detailUrl);
-      
-      // If drama detail page is not available, try to find it from search
+
       if (res.includes("Attempt to read property") || res.includes("error")) {
         console.warn(`Drama detail page error for ${url}, trying alternative approach`);
-        
-        // Return basic info for now
         return {
           title: url.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
           cover: "",
@@ -140,55 +130,54 @@ export default class extends Extension {
           episodes: [],
         };
       }
-      
-      // Parse the drama detail page
-      const titleElement = await this.querySelector(res, "h1") || 
-                          await this.querySelector(res, ".drama-title") ||
-                          await this.querySelector(res, "title");
-      
-      const descElement = await this.querySelector(res, ".description") ||
-                         await this.querySelector(res, ".synopsis") ||
-                         await this.querySelector(res, ".summary");
-      
-      const coverElement = await this.querySelector(res, ".drama-poster img") ||
-                          await this.querySelector(res, ".poster img") ||
-                          await this.querySelector(res, "img[alt*='poster']");
-      
-      // Look for episode links
-      const episodeElements = await this.querySelectorAll(res, "a[href*='video-watch']");
-      
+
+      const titleElement = await this.querySelector(res, "h1") ||
+        await this.querySelector(res, ".drama-title") ||
+        await this.querySelector(res, "title");
+
+      const descElement = await this.querySelector(res, ".info") ||
+        await this.querySelector(res, ".description") ||
+        await this.querySelector(res, ".synopsis") ||
+        await this.querySelector(res, ".summary");
+
+      const coverElement = await this.querySelector(res, ".img > img") ||
+        await this.querySelector(res, ".drama-poster img") ||
+        await this.querySelector(res, ".poster img") ||
+        await this.querySelector(res, "img[alt*='poster']");
+
+      const episodeElements = await this.querySelectorAll(res, "ul.all-episode > li > a");
+
       const episodes = [];
       if (episodeElements.length > 0) {
         const episodeUrls = [];
         for (const epElement of episodeElements) {
-          const epHtml = await epElement.content;
+          const epHtml = epElement.content;
           const epUrl = await this.getAttributeText(epHtml, "a", "href");
-          const epText = await this.querySelector(epHtml, "a").text;
-          
-          if (epUrl && epText) {
-            // Extract episode ID from URL
+          const epName = (await this.querySelector(epHtml, "h3.title"))?.text;
+
+          if (epUrl && epName) {
             const epMatch = epUrl.match(/video-watch\/(.+)/);
             if (epMatch) {
               episodeUrls.push({
-                name: epText.trim(),
+                name: epName.trim(),
                 url: epMatch[1],
               });
             }
           }
         }
-        
+
         if (episodeUrls.length > 0) {
           episodes.push({
             title: "Episodes",
-            urls: episodeUrls,
+            urls: episodeUrls.reverse(),
           });
         }
       }
-      
+
       return {
         title: await titleElement?.text || url.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        cover: await coverElement?.getAttributeText("src") || 
-               await coverElement?.getAttributeText("data-src") || "",
+        cover: await coverElement?.getAttributeText("src") ||
+          await coverElement?.getAttributeText("data-src") || "",
         desc: await descElement?.text || "No description available.",
         episodes,
       };
