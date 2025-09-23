@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.8
+// @version      v0.0.9
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -23,7 +23,7 @@ export default class extends Extension {
     };
   }
 
-  async req(url) {
+  async req(url, options) {
     // Use proxy for better mobile compatibility and CORS bypass
     const finalUrl = this.useProxy ? this.proxyUrl + encodeURIComponent(url) : url;
     return this.request(finalUrl, {
@@ -31,6 +31,7 @@ export default class extends Extension {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.5",
+        ...options?.headers
       },
     });
   }
@@ -82,7 +83,6 @@ export default class extends Extension {
       }
       
       this.settingsLoaded = true;
-      console.log(`Settings loaded: useProxy=${this.useProxy}, proxyUrl=${this.proxyUrl}`);
     } catch (error) {
       console.warn("Failed to load settings, using defaults:", error);
       this.useProxy = this.defaultSettings.useProxy;
@@ -104,13 +104,15 @@ export default class extends Extension {
     for (const element of bsxList) {
       const html = await element.content;
       const url = await this.getAttributeText(html, "a", "href");
-      const title = await this.querySelector(html, "h3").text;
-      const cover = await this.querySelector(html, "img").getAttributeText("data-original");
-      novel.push({
-        title,
-        url: url.replace("/drama-detail/", ""),
-        cover,
-      });
+      const title = (await this.querySelector(html, "h3"))?.text;
+      const cover = await this.getAttributeText(html, "img", "data-original");
+      if(url) {
+        novel.push({
+            title,
+            url: url.replace("/drama-detail/", ""),
+            cover,
+        });
+      }
     }
     return novel;
   }
@@ -122,11 +124,10 @@ export default class extends Extension {
       const res = await this.req(detailUrl);
 
       if (res.includes("Attempt to read property") || res.includes("error")) {
-        console.warn(`Drama detail page error for ${url}, trying alternative approach`);
         return {
           title: url.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
           cover: "",
-          desc: "Drama details are currently unavailable. This may be a temporary issue with the website.",
+          desc: "Drama details are currently unavailable.",
           episodes: [],
         };
       }
@@ -136,14 +137,10 @@ export default class extends Extension {
         await this.querySelector(res, "title");
 
       const descElement = await this.querySelector(res, ".info") ||
-        await this.querySelector(res, ".description") ||
-        await this.querySelector(res, ".synopsis") ||
-        await this.querySelector(res, ".summary");
+        await this.querySelector(res, ".description");
 
       const coverElement = await this.querySelector(res, ".img > img") ||
-        await this.querySelector(res, ".drama-poster img") ||
-        await this.querySelector(res, ".poster img") ||
-        await this.querySelector(res, "img[alt*='poster']");
+        await this.querySelector(res, ".drama-poster img");
 
       const episodeElements = await this.querySelectorAll(res, "ul.all-episode > li > a");
 
@@ -175,10 +172,9 @@ export default class extends Extension {
       }
 
       return {
-        title: await titleElement?.text || url.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        cover: await coverElement?.getAttributeText("src") ||
-          await coverElement?.getAttributeText("data-src") || "",
-        desc: await descElement?.text || "No description available.",
+        title: titleElement?.text || "",
+        cover: await coverElement?.getAttributeText("src") || "",
+        desc: descElement?.text || "",
         episodes,
       };
     } catch (error) {
@@ -186,7 +182,7 @@ export default class extends Extension {
       return {
         title: url.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
         cover: "",
-        desc: "Failed to load details. The service may be temporarily unavailable.",
+        desc: "Failed to load details.",
         episodes: [],
       };
     }
@@ -194,62 +190,26 @@ export default class extends Extension {
 
   async search(kw, page) {
     try {
-      // Validate search keyword
-      if (!kw || kw.trim() === '') {
-        console.warn("Search keyword is empty");
-        return [];
-      }
-      
-      // Load settings once
       await this.loadSettings();
-
       const searchUrl = `${this.baseUrl}/search?type=drama&keyword=${encodeURIComponent(kw.trim())}`;
       const res = await this.req(searchUrl);
       
-      // Look for search results with multiple possible selectors
-      const resultElements = await this.querySelectorAll(res, ".drama-list li") ||
-                           await this.querySelectorAll(res, ".search-results .item") ||
-                           await this.querySelectorAll(res, ".movie-item") ||
-                           await this.querySelectorAll(res, "ul.switch-block li");
+      const resultElements = await this.querySelectorAll(res, ".drama-list li");
       
       const results = [];
       for (const element of resultElements) {
-        try {
-          const html = element.content;
-          
-          const url = await this.getAttributeText(html, "a", "href");
-          const title = await this.querySelector(html, "h3")?.text || 
-                       await this.getAttributeText(html, "a", "title");
-          const cover = await this.getAttributeText(html, "img", "data-original") ||
-                       await this.getAttributeText(html, "img", "data-src") ||
-                       await this.getAttributeText(html, "img", "src");
-          
-          // Validate title
-          if (!title || title.trim() === '') {
-            continue;
-          }
-          
-          if (url && title) {
-            // Extract drama ID from URL
-            let dramaId = url;
-            if (url.includes("/drama-detail/")) {
-              dramaId = url.split("/drama-detail/")[1];
-            } else if (url.includes("/video-watch/")) {
-              const match = url.match(/video-watch\/(.+?)-episode-/);
-              if (match) {
-                dramaId = match[1];
-              }
-            }
-            
+        const html = element.content;
+        const url = await this.getAttributeText(html, "a", "href");
+        const title = (await this.querySelector(html, "h3"))?.text;
+        const cover = await this.getAttributeText(html, "img", "data-original");
+        
+        if (url && title) {
+            let dramaId = url.includes("/drama-detail/") ? url.split("/drama-detail/")[1] : url;
             results.push({
               title: title.trim(),
-              url: dramaId || "",
+              url: dramaId,
               cover: cover || '',
             });
-          }
-        } catch (itemError) {
-          console.warn("Error processing search item:", itemError);
-          continue;
         }
       }
       
@@ -278,7 +238,6 @@ export default class extends Extension {
         }
       }
 
-      // Prioritize Doodstream
       for (const serverUrl of serverUrls) {
         if (serverUrl.includes('dood')) {
           try {
@@ -292,7 +251,6 @@ export default class extends Extension {
         }
       }
 
-      // Fallback to other servers (iframe)
       for (const serverUrl of serverUrls) {
         if (!serverUrl.includes('dood')) {
            return { type: 'iframe', url: serverUrl };
@@ -308,7 +266,7 @@ export default class extends Extension {
 
   async _getDoodstreamUrl(url, referer) {
     const res = await this.req(url, { headers: { Referer: referer } });
-    const md5Match = res.match(/\/pass_md5\/([^\']+)/);
+    const md5Match = res.match(///pass_md5/([^"]+)/);
     if (md5Match) {
       const md5Path = "/pass_md5/" + md5Match[1];
       const doodApiUrl = url.match(/https:\/\/[^\/]+/) + md5Path;
@@ -317,19 +275,4 @@ export default class extends Extension {
     }
     return null;
   }
-
-  async extractPlayerUrl(html) {
-    try {
-        const scripts = await this.querySelectorAll(html, "script");
-        for (const script of scripts) {
-            const scriptText = (await this.querySelector(script.content, "script"))?.text || "";
-            const match = scriptText.match(/player\.setup\(\{\s*sources:\[\{\s*file:\s*"([^"]+)"/);
-            if (match) {
-                return match[1];
-            }
-        }
-    } catch (e) {
-        // Ignore errors in player extraction
-    }
-    return null;
-  }
+}
