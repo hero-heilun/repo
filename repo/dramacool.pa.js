@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.5
+// @version      v0.0.7
 // @author       OshekharO
 // @lang         en
 // @license      MIT
