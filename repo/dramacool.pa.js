@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.6
+// @version      v0.0.5
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -275,8 +275,8 @@ export default class extends Extension {
       
       // Load settings once
       await this.loadSettings();
-      
-      const searchUrl = `${this.baseUrl}/search?keyword=${encodeURIComponent(kw.trim())}`;
+
+      const searchUrl = `${this.baseUrl}/search?type=drama&keyword=${encodeURIComponent(kw.trim())}`;
       const res = await this.req(searchUrl);
       
       // Look for search results with multiple possible selectors
