@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.6
+// @version      v0.0.5
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -14,11 +14,14 @@ export default class extends Extension {
   constructor() {
     super();
     this.baseUrl = "https://dramacool.com.bz";
+    this.proxyUrl = "https://proxy.techzbots1.workers.dev/?u=";
+    this.useProxy = true; // Enable proxy by default for mobile compatibility
   }
 
   async req(url) {
-    // Direct web scraping approach
-    return this.request(url, {
+    // Use proxy for better mobile compatibility and CORS bypass
+    const finalUrl = this.useProxy ? this.proxyUrl + encodeURIComponent(url) : url;
+    return this.request(finalUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
@@ -28,13 +31,33 @@ export default class extends Extension {
   }
 
   async load() {
-    // No settings needed for direct scraping
+    this.registerSetting({
+      title: "Use Proxy",
+      key: "useProxy",
+      type: "switch",
+      description: "Enable proxy for better mobile access and CORS bypass",
+      defaultValue: true,
+    });
+    
+    this.registerSetting({
+      title: "Proxy URL",
+      key: "proxyUrl", 
+      type: "input",
+      description: "Proxy service URL (change only if needed)",
+      defaultValue: "https://proxy.techzbots1.workers.dev/?u=",
+    });
   }
 
   async latest() {
     try {
+      // Get user settings
+      this.useProxy = await this.getSetting("useProxy");
+      this.proxyUrl = await this.getSetting("proxyUrl");
+      
       console.log("Fetching latest dramas from:", this.baseUrl);
-      const res = await this.request(this.baseUrl);
+      console.log("Using proxy:", this.useProxy);
+      
+      const res = await this.req(this.baseUrl);
       console.log("Response received, length:", res.length);
       
       const bsxList = await this.querySelectorAll(res, "ul.switch-block.list-episode-item > li");
@@ -108,9 +131,13 @@ export default class extends Extension {
 
   async detail(url) {
     try {
+      // Get user settings
+      this.useProxy = await this.getSetting("useProxy");
+      this.proxyUrl = await this.getSetting("proxyUrl");
+      
       // Try to access drama detail page directly
       const detailUrl = `${this.baseUrl}/drama-detail/${url}`;
-      const res = await this.request(detailUrl);
+      const res = await this.req(detailUrl);
       
       // If drama detail page is not available, try to find it from search
       if (res.includes("Attempt to read property") || res.includes("error")) {
@@ -189,8 +216,12 @@ export default class extends Extension {
 
   async search(kw, page) {
     try {
+      // Get user settings
+      this.useProxy = await this.getSetting("useProxy");
+      this.proxyUrl = await this.getSetting("proxyUrl");
+      
       const searchUrl = `${this.baseUrl}/search/keyword/${encodeURIComponent(kw)}`;
-      const res = await this.request(searchUrl);
+      const res = await this.req(searchUrl);
       
       // Look for search results with multiple possible selectors
       const resultElements = await this.querySelectorAll(res, ".drama-list li") ||
@@ -247,9 +278,13 @@ export default class extends Extension {
 
   async watch(url) {
     try {
+      // Get user settings
+      this.useProxy = await this.getSetting("useProxy");
+      this.proxyUrl = await this.getSetting("proxyUrl");
+      
       // Access the video watch page directly
       const watchUrl = `${this.baseUrl}/video-watch/${url}`;
-      const res = await this.request(watchUrl);
+      const res = await this.req(watchUrl);
       
       // Look for DramaCool's specific data-video attribute
       const serverElements = await this.querySelectorAll(res, "li[data-video]");
