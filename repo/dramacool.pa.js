@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.4
+// @version      v0.0.5
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -122,6 +122,11 @@ export default class extends Extension {
         const res = await this.req(detailUrl);
         
         console.log("Detail parsing started for: " + String(url));
+        console.log("Response length: " + res.length);
+        
+        // Debug: show HTML preview
+        const htmlPreview = res.substring(0, 1000);
+        console.log("HTML preview (first 1000 chars): " + htmlPreview);
 
         // Use regex parsing like missav.tv.js instead of DOM selectors
         console.log("Using regex parsing (missav.tv.js style)...");
