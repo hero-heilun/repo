@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.6
+// @version      v0.0.7
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -245,22 +245,42 @@ export default class extends Extension {
         await this.loadSettings();
         const searchUrl = `${this.baseUrl}/search?type=drama&keyword=${encodeURIComponent(kw.trim())}`;
         const res = await this.req(searchUrl);
-        const resultElements = await this.querySelectorAll(res, ".drama-list li");
+        
+        console.log("Search parsing started for: " + String(kw));
+        console.log("Response length: " + res.length);
+        
+        // Use regex parsing like detail and watch methods
         const results = [];
-        for (const element of resultElements) {
-          const html = element.content;
-          const url = await this.getAttributeText(html, "a", "href");
-          const titleElement = await this.querySelector(html, "h3");
-          const title = titleElement ? titleElement.text : null;
-          const cover = await this.getAttributeText(html, "img", "data-original");
-          if (url && title) {
-            let dramaId = url.includes("/drama-detail/") ? url.split("/drama-detail/")[1] : url;
-            results.push({ title: title.trim(), url: dramaId, cover: cover || '' });
+        
+        // Extract drama links and info using regex
+        const dramaPattern = /<li[^>]*>[\s\S]*?<a[^>]*href="([^"]*drama-detail\/[^"]*)"[^>]*>[\s\S]*?<h3[^>]*>([^<]+)<\/h3>[\s\S]*?<img[^>]*(?:data-original|src)="([^"]*)"[^>]*>[\s\S]*?<\/li>/g;
+        let dramaMatch;
+        let count = 0;
+        
+        while ((dramaMatch = dramaPattern.exec(res)) !== null && count < 20) {
+          try {
+            const url = dramaMatch[1];
+            const title = dramaMatch[2].trim();
+            const cover = dramaMatch[3];
+            
+            if (url && title) {
+              let dramaId = url.includes("/drama-detail/") ? url.split("/drama-detail/")[1] : url;
+              results.push({ 
+                title: title, 
+                url: dramaId, 
+                cover: cover || '' 
+              });
+              count++;
+            }
+          } catch (itemError) {
+            console.warn("Search item parse error: " + itemError.message);
           }
         }
+        
+        console.log("Search results found: " + results.length);
         return results;
       } catch (error) {
-        console.error(`Search error for "${kw}":`, error);
+        console.error("Search error for " + String(kw) + ": " + error.message);
         return [];
       }
     }
@@ -270,46 +290,77 @@ export default class extends Extension {
         await this.loadSettings();
         const watchUrl = `${this.baseUrl}/video-watch/${url}`;
         const res = await this.req(watchUrl);
-        const serverElements = await this.querySelectorAll(res, "li[data-video]");
+        
+        console.log("Watch parsing started for: " + String(url));
+        console.log("Response length: " + res.length);
+        
+        // Use regex parsing like detail method
         const serverUrls = [];
-        for (const serverElement of serverElements) {
-          let videoUrl = await this.getAttributeText(serverElement.content, "li", "data-video");
+        
+        // Extract data-video attributes using regex
+        const dataVideoPattern = /data-video="([^"]+)"/g;
+        let dataVideoMatch;
+        
+        while ((dataVideoMatch = dataVideoPattern.exec(res)) !== null) {
+          let videoUrl = dataVideoMatch[1];
           if (videoUrl) {
             if (videoUrl.startsWith('//')) videoUrl = 'https:' + videoUrl;
             serverUrls.push(videoUrl);
           }
         }
-
+        
+        console.log("Server URLs found: " + serverUrls.length);
+        
+        // Try Doodstream servers first
         for (const serverUrl of serverUrls) {
           if (serverUrl.includes('dood')) {
             try {
+              console.log("Trying Doodstream URL: " + serverUrl);
               const directUrl = await this._getDoodstreamUrl(serverUrl, watchUrl);
-              if (directUrl) return { type: 'hls', url: directUrl };
+              if (directUrl) {
+                console.log("Doodstream success, returning HLS URL");
+                return { type: 'hls', url: directUrl };
+              }
             } catch (e) {
-              console.warn(`Doodstream extraction failed: ${e.message}`);
+              console.warn("Doodstream extraction failed: " + e.message);
             }
           }
         }
 
+        // Try other servers as iframe fallback
         for (const serverUrl of serverUrls) {
-          if (!serverUrl.includes('dood')) return { type: 'iframe', url: serverUrl };
+          if (!serverUrl.includes('dood')) {
+            console.log("Using iframe fallback: " + serverUrl);
+            return { type: 'iframe', url: serverUrl };
+          }
         }
 
         throw new Error('No video sources found on the page');
       } catch (error) {
-        console.error(`Watch error for "${url}":`, error);
-        throw new Error(`Failed to load video: ${error.message}.`);
+        console.error("Watch error for " + String(url) + ": " + error.message);
+        throw new Error("Failed to load video: " + error.message);
       }
     }
    
     async _getDoodstreamUrl(url, referer) {
-      const res = await this.req(url, { headers: { Referer: referer } });
-      const md5Match = res.match(/\/pass_md5\/([^\']+)/);
-      if (md5Match) {
-        const md5Path = "/pass_md5/" + md5Match[1];
-        const doodApiUrl = url.match(/https:\/\/[^\/]+/) + md5Path;
-        const apiRes = await this.req(doodApiUrl, { headers: { Referer: url } });
-        return apiRes + 'z';
+      try {
+        const res = await this.req(url, { headers: { Referer: referer } });
+        const md5Match = res.match(/\/pass_md5\/([^\']+)/);
+        if (md5Match) {
+          const md5Path = "/pass_md5/" + md5Match[1];
+          const doodApiUrl = url.match(/https:\/\/[^\/]+/) + md5Path;
+          const apiRes = await this.req(doodApiUrl, { headers: { Referer: url } });
+          
+          // Clean the API response to avoid cookie formatting issues
+          const cleanApiRes = String(apiRes).trim().replace(/[^\x20-\x7E]/g, '');
+          console.log("Doodstream API response length: " + apiRes.length + " cleaned: " + cleanApiRes.length);
+          
+          if (cleanApiRes && cleanApiRes.length > 0) {
+            return cleanApiRes + 'z';
+          }
+        }
+      } catch (error) {
+        console.warn("Doodstream URL extraction error: " + error.message);
       }
       return null;
     }
