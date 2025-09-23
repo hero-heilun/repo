@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.9
+// @version      v0.0.2
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -311,27 +311,49 @@ export default class extends Extension {
         
         console.log("Server URLs found: " + serverUrls.length);
         
-        // Prioritize non-Doodstream servers first (avoid cookie issues)
+        // Try to extract direct video URLs from all servers (they are all embed pages)
         for (const serverUrl of serverUrls) {
-          if (!serverUrl.includes('dood')) {
-            console.log("Using non-Doodstream server (direct): " + serverUrl);
-            return { type: 'mp4', url: serverUrl };
-          }
-        }
-        
-        // If only Doodstream available, try extraction (but this may have cookie issues)
-        for (const serverUrl of serverUrls) {
-          if (serverUrl.includes('dood')) {
-            try {
-              console.log("Trying Doodstream extraction (last resort): " + serverUrl);
+          console.log("Trying to extract video from: " + serverUrl);
+          
+          try {
+            if (serverUrl.includes('dood')) {
+              console.log("Processing Doodstream embed...");
               const directUrl = await this._getDoodstreamUrl(serverUrl, watchUrl);
               if (directUrl) {
-                console.log("Doodstream success: " + directUrl);
+                console.log("Doodstream extraction success: " + directUrl);
                 return { type: 'hls', url: directUrl };
               }
-            } catch (e) {
-              console.warn("Doodstream extraction failed: " + e.message);
+            } else if (serverUrl.includes('pladrac.net')) {
+              console.log("Processing Pladrac embed...");
+              const directUrl = await this._getPladracUrl(serverUrl, watchUrl);
+              if (directUrl) {
+                console.log("Pladrac extraction success: " + directUrl);
+                return { type: 'mp4', url: directUrl };
+              }
+            } else if (serverUrl.includes('dwish.pro')) {
+              console.log("Processing Dwish embed...");
+              const directUrl = await this._getDwishUrl(serverUrl, watchUrl);
+              if (directUrl) {
+                console.log("Dwish extraction success: " + directUrl);
+                return { type: 'mp4', url: directUrl };
+              }
+            } else if (serverUrl.includes('dlions.pro')) {
+              console.log("Processing Dlions embed...");
+              const directUrl = await this._getDlionsUrl(serverUrl, watchUrl);
+              if (directUrl) {
+                console.log("Dlions extraction success: " + directUrl);
+                return { type: 'mp4', url: directUrl };
+              }
+            } else {
+              console.log("Unknown server type, trying generic extraction...");
+              const directUrl = await this._getGenericVideoUrl(serverUrl, watchUrl);
+              if (directUrl) {
+                console.log("Generic extraction success: " + directUrl);
+                return { type: 'mp4', url: directUrl };
+              }
             }
+          } catch (e) {
+            console.warn("Server " + serverUrl + " extraction failed: " + e.message);
           }
         }
 
@@ -365,5 +387,121 @@ export default class extends Extension {
         console.warn("Doodstream URL extraction error: " + error.message);
       }
       return null;
+    }
+
+    async _getPladracUrl(url, referer) {
+      try {
+        console.log("Fetching Pladrac embed page...");
+        const res = await this.req(url, { headers: { Referer: referer } });
+        
+        // Look for video URL patterns in Pladrac embed
+        const videoPatterns = [
+          /sources:\s*\[\s*{\s*(?:file|src):\s*["']([^"']+\.(?:mp4|m3u8|ts))["']/,
+          /file:\s*["']([^"']+\.(?:mp4|m3u8|ts))["']/,
+          /src:\s*["']([^"']+\.(?:mp4|m3u8|ts))["']/,
+          /"file":\s*"([^"]+\.(?:mp4|m3u8|ts))"/
+        ];
+        
+        for (const pattern of videoPatterns) {
+          const match = res.match(pattern);
+          if (match) {
+            console.log("Found Pladrac video URL: " + match[1]);
+            return match[1];
+          }
+        }
+        
+        console.log("No video URL found in Pladrac embed");
+        return null;
+      } catch (error) {
+        console.warn("Pladrac extraction error: " + error.message);
+        return null;
+      }
+    }
+
+    async _getDwishUrl(url, referer) {
+      try {
+        console.log("Fetching Dwish embed page...");
+        const res = await this.req(url, { headers: { Referer: referer } });
+        
+        // Look for video URL patterns in Dwish embed  
+        const videoPatterns = [
+          /sources:\s*\[\s*{\s*(?:file|src):\s*["']([^"']+\.(?:mp4|m3u8|ts))["']/,
+          /file:\s*["']([^"']+\.(?:mp4|m3u8|ts))["']/,
+          /"(?:file|src)":\s*"([^"]+\.(?:mp4|m3u8|ts))"/
+        ];
+        
+        for (const pattern of videoPatterns) {
+          const match = res.match(pattern);
+          if (match) {
+            console.log("Found Dwish video URL: " + match[1]);
+            return match[1];
+          }
+        }
+        
+        console.log("No video URL found in Dwish embed");
+        return null;
+      } catch (error) {
+        console.warn("Dwish extraction error: " + error.message);
+        return null;
+      }
+    }
+
+    async _getDlionsUrl(url, referer) {
+      try {
+        console.log("Fetching Dlions embed page...");
+        const res = await this.req(url, { headers: { Referer: referer } });
+        
+        // Look for video URL patterns in Dlions embed
+        const videoPatterns = [
+          /sources:\s*\[\s*{\s*(?:file|src):\s*["']([^"']+\.(?:mp4|m3u8|ts))["']/,
+          /file:\s*["']([^"']+\.(?:mp4|m3u8|ts))["']/,
+          /"(?:file|src)":\s*"([^"]+\.(?:mp4|m3u8|ts))"/
+        ];
+        
+        for (const pattern of videoPatterns) {
+          const match = res.match(pattern);
+          if (match) {
+            console.log("Found Dlions video URL: " + match[1]);
+            return match[1];
+          }
+        }
+        
+        console.log("No video URL found in Dlions embed");
+        return null;
+      } catch (error) {
+        console.warn("Dlions extraction error: " + error.message);
+        return null;
+      }
+    }
+
+    async _getGenericVideoUrl(url, referer) {
+      try {
+        console.log("Fetching generic embed page...");
+        const res = await this.req(url, { headers: { Referer: referer } });
+        
+        // Look for common video URL patterns
+        const videoPatterns = [
+          /sources:\s*\[\s*{\s*(?:file|src):\s*["']([^"']+\.(?:mp4|m3u8|ts|avi|mkv|webm))["']/,
+          /file:\s*["']([^"']+\.(?:mp4|m3u8|ts|avi|mkv|webm))["']/,
+          /src:\s*["']([^"']+\.(?:mp4|m3u8|ts|avi|mkv|webm))["']/,
+          /"(?:file|src|url)":\s*"([^"]+\.(?:mp4|m3u8|ts|avi|mkv|webm))"/,
+          /<source[^>]+src=["']([^"']+\.(?:mp4|m3u8|ts|avi|mkv|webm))["']/,
+          /<video[^>]+src=["']([^"']+\.(?:mp4|m3u8|ts|avi|mkv|webm))["']/
+        ];
+        
+        for (const pattern of videoPatterns) {
+          const match = res.match(pattern);
+          if (match) {
+            console.log("Found generic video URL: " + match[1]);
+            return match[1];
+          }
+        }
+        
+        console.log("No video URL found in generic embed");
+        return null;
+      } catch (error) {
+        console.warn("Generic extraction error: " + error.message);
+        return null;
+      }
     }
   }
