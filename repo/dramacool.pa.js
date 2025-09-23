@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.4
+// @version      v0.0.5
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -136,7 +136,8 @@ export default class extends Extension {
            for (const epElement of episodeElements) {
              const epHtml = epElement.content;
              const epUrl = await this.getAttributeText(epHtml, "a", "href");
-             const epName = (await this.querySelector(epHtml, "h3.title"))?.text;
+             const epNameElement = await this.querySelector(epHtml, "h3.title");
+            const epName = epNameElement ? epNameElement.text : null;
              if (epUrl && epName) {
                const epMatch = epUrl.match(/video-watch\/(.+)/);
                if (epMatch) {
@@ -148,10 +149,10 @@ export default class extends Extension {
              episodes.push({ title: "Episodes", urls: episodeUrls.reverse() });
            }
          }
-         console.log("title"+title+"title"+cover+"title"+desc);
+         console.log("titleElement:" + (titleElement?.text || "null") + ", coverElement:" + (coverElement ? "found" : "null") + ", descElement:" + (descElement?.text?.substring(0, 50) || "null"));
          return {
            title: String(titleElement?.text || ""),
-           cover: String((coverElement && await this.getAttributeText(coverElement.content || res, "img", "src")) || ""),
+           cover: String(coverElement ? await this.getAttributeText(res, ".img > img, .drama-poster img", "src") || "" : ""),
            desc: String(descElement?.text || ""),
            episodes,
          };
