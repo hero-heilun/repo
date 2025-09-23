@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.5
+// @version      v0.0.8
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -262,83 +262,74 @@ export default class extends Extension {
 
   async watch(url) {
     try {
-      // Load settings once
       await this.loadSettings();
-      
-      // Access the video watch page directly
       const watchUrl = `${this.baseUrl}/video-watch/${url}`;
       const res = await this.req(watchUrl);
-      
-      // Look for DramaCool's specific data-video attribute
+
       const serverElements = await this.querySelectorAll(res, "li[data-video]");
-      
+      const serverUrls = [];
       for (const serverElement of serverElements) {
-        const serverHtml = await serverElement.content;
-        const videoUrl = await this.getAttributeText(serverHtml, "li", "data-video");
-        
+        let videoUrl = await this.getAttributeText(serverElement.content, "li", "data-video");
         if (videoUrl) {
-          return {
-            type: "iframe",
-            url: videoUrl,
-          };
+          if (videoUrl.startsWith('//')) {
+            videoUrl = 'https:' + videoUrl;
+          }
+          serverUrls.push(videoUrl);
         }
       }
-      
-      // Check for iframe sources as fallback
-      const iframes = await this.querySelectorAll(res, "iframe");
-      
-      for (const iframe of iframes) {
-        const iframeHtml = await iframe.content;
-        const src = await this.getAttributeText(iframeHtml, "iframe", "src");
-        
-        if (src && (src.includes("vidbasic") || src.includes("streamtape") || src.includes("mixdrop") || src.includes("doodstream"))) {
-          return {
-            type: "iframe",
-            url: src,
-          };
-        }
-      }
-      
-      // Look for direct video links
-      const videoElements = await this.querySelectorAll(res, "video source") ||
-                           await this.querySelectorAll(res, "video");
-      
-      for (const video of videoElements) {
-        const videoHtml = await video.content;
-        const src = await this.getAttributeText(videoHtml, "source", "src") ||
-                   await this.getAttributeText(videoHtml, "video", "src");
-        
-        if (src) {
-          return {
-            type: src.includes(".m3u8") ? "hls" : "mp4",
-            url: src,
-          };
-        }
-      }
-      
-      // Look for embedded player scripts
-      const scripts = await this.querySelectorAll(res, "script");
-      for (const script of scripts) {
-        const scriptHtml = await script.content;
-        const scriptText = await this.querySelector(scriptHtml, "script").text;
-        
-        // Look for common video URL patterns
-        const urlMatches = scriptText.match(/(?:file|src|url|data-video):\s*["']([^"']+)[^"']*["']/i);
-        if (urlMatches) {
-          const videoUrl = urlMatches[1];
-          if (videoUrl.includes("http") && (videoUrl.includes("embed") || videoUrl.includes("player"))) {
-            return {
-              type: "iframe",
-              url: videoUrl,
-            };
+
+      // Prioritize Doodstream
+      for (const serverUrl of serverUrls) {
+        if (serverUrl.includes('dood')) {
+          try {
+            const directUrl = await this._getDoodstreamUrl(serverUrl, watchUrl);
+            if (directUrl) {
+              return { type: 'hls', url: directUrl };
+            }
+          } catch (e) {
+            console.warn(`Doodstream extraction failed: ${e.message}`);
           }
         }
       }
-      
+
+      // Fallback to other servers (iframe)
+      for (const serverUrl of serverUrls) {
+        if (!serverUrl.includes('dood')) {
+           return { type: 'iframe', url: serverUrl };
+        }
+      }
+
       throw new Error('No video sources found on the page');
     } catch (error) {
       console.error(`Watch error for "${url}":`, error);
-      throw new Error(`Failed to load video: ${error.message}. The video may not be available or requires a different player.`);
+      throw new Error(`Failed to load video: ${error.message}.`);
     }
   }
-}
+
+  async _getDoodstreamUrl(url, referer) {
+    const res = await this.req(url, { headers: { Referer: referer } });
+    const md5Match = res.match(/\/pass_md5\/([^\']+)/);
+    if (md5Match) {
+      const md5Path = "/pass_md5/" + md5Match[1];
+      const doodApiUrl = url.match(/https:\/\/[^\/]+/) + md5Path;
+      const apiRes = await this.req(doodApiUrl, { headers: { Referer: url } });
+      return apiRes + 'z'; // Append 'z' to get the full URL
+    }
+    return null;
+  }
+
+  async extractPlayerUrl(html) {
+    try {
+        const scripts = await this.querySelectorAll(html, "script");
+        for (const script of scripts) {
+            const scriptText = (await this.querySelector(script.content, "script"))?.text || "";
+            const match = scriptText.match(/player\.setup\(\{\s*sources:\[\{\s*file:\s*"([^"]+)"/);
+            if (match) {
+                return match[1];
+            }
+        }
+    } catch (e) {
+        // Ignore errors in player extraction
+    }
+    return null;
+  }
