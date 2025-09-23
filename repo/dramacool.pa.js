@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.2
+// @version      v0.0.3
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -123,63 +123,86 @@ export default class extends Extension {
         
         console.log("Detail parsing started for: " + String(url));
 
-        const titleElement = await this.querySelector(res, "h1");
-        console.log("titleElement result: " + (titleElement ? "found" : "null"));
+        // Use regex parsing like missav.tv.js instead of DOM selectors
+        console.log("Using regex parsing (missav.tv.js style)...");
         
-        const descElement = await this.querySelector(res, ".info");
-        console.log("descElement result: " + (descElement ? "found" : "null"));
+        // Extract title using regex
+        let title = "";
+        const titleMatch = res.match(/<h1[^>]*>([^<]+)<\/h1>/);
+        if (titleMatch) {
+          title = titleMatch[1].trim();
+        }
+        console.log("Title regex result: " + (title ? title : "null"));
         
-        const coverSrc = await this.getAttributeText(res, ".img > img", "src");
-        console.log("coverSrc result: " + (coverSrc ? coverSrc : "null"));
-
-        const title = titleElement && titleElement.text ? String(titleElement.text) : "";
-        const desc = descElement && descElement.text ? String(descElement.text) : "";
-        const cover = coverSrc ? String(coverSrc) : "";
+        // Extract description using regex
+        let desc = "";
+        const descMatch = res.match(/<div[^>]*class="[^"]*info[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+        if (descMatch) {
+          // Clean HTML tags from description
+          desc = descMatch[1].replace(/<[^>]*>/g, '').trim();
+        }
+        console.log("Desc regex result: " + (desc ? "found" : "null"));
+        
+        // Extract cover using regex
+        let cover = "";
+        const coverMatch = res.match(/<img[^>]*src="([^"]*drama[^"]*\.(?:jpg|jpeg|png|webp))"[^>]*>/);
+        if (coverMatch) {
+          cover = coverMatch[1];
+        }
+        console.log("Cover regex result: " + (cover ? cover : "null"));
         
         console.log("Basic info - Title: " + (title ? "Found" : "Not found") + ", Cover: " + (cover ? "Found" : "Not found"));
         
-        const episodeElements = await this.querySelectorAll(res, "ul.all-episode > li > a");
-        console.log("episodeElements result: " + (episodeElements ? episodeElements.length : "null"));
-        
+        // Extract episodes using regex like missav.tv.js
+        console.log("Extracting episodes with regex...");
         const episodes = [];
+        const episodeUrls = [];
         
-        if (episodeElements && episodeElements.length > 0) {
-          console.log("Found episodes: " + episodeElements.length);
-          const episodeUrls = [];
-          
-          for (let i = 0; i < episodeElements.length; i++) {
-            try {
-              const epElement = episodeElements[i];
-              const epHtml = epElement.content;
-              const epUrl = await this.getAttributeText(epHtml, "a", "href");
-              
-              if (epUrl) {
-                const epMatch = epUrl.match(/video-watch\/(.+)/);
-                if (epMatch) {
-                  const epNameElement = await this.querySelector(epHtml, "h3.title");
-                  const epName = epNameElement && epNameElement.text ? String(epNameElement.text) : `Episode ${i + 1}`;
-                  episodeUrls.push({ 
-                    name: String(epName).trim(), 
-                    url: String(epMatch[1]) 
-                  });
-                }
+        // Find all video-watch links with regex
+        const episodePattern = /<a[^>]*href="([^"]*video-watch\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
+        let episodeMatch;
+        let episodeCount = 0;
+        
+        while ((episodeMatch = episodePattern.exec(res)) !== null && episodeCount < 50) {
+          try {
+            const epUrl = episodeMatch[1];
+            const epHtml = episodeMatch[2];
+            
+            // Extract episode ID from URL
+            const urlMatch = epUrl.match(/video-watch\/(.+)/);
+            if (urlMatch) {
+              // Extract episode name from the link HTML
+              let epName = "";
+              const nameMatch = epHtml.match(/>([^<]*Episode[^<]*)</);
+              if (nameMatch) {
+                epName = nameMatch[1].trim();
+              } else {
+                epName = `Episode ${episodeCount + 1}`;
               }
-            } catch (epError) {
-              console.warn("Episode parse error at index " + i + ": " + epError.message);
+              
+              episodeUrls.push({
+                name: String(epName),
+                url: String(urlMatch[1])
+              });
+              episodeCount++;
             }
+          } catch (epError) {
+            console.warn("Episode regex error: " + epError.message);
           }
-          
-          if (episodeUrls.length > 0) {
-            episodes.push({ title: "Episodes", urls: episodeUrls.reverse() });
-          }
+        }
+        
+        console.log("Episode regex result: " + episodeUrls.length + " episodes found");
+        
+        if (episodeUrls.length > 0) {
+          episodes.push({ title: "Episodes", urls: episodeUrls.reverse() });
         }
         
         console.log("Detail parsing completed - Episodes: " + (episodes.length > 0 ? episodes[0].urls.length : 0));
         
         return {
-          title: String(title),
-          cover: String(cover),
-          desc: String(desc),
+          title: title || "",
+          cover: cover || "",
+          desc: desc || "",
           episodes: episodes
         };
       } catch (error) {
