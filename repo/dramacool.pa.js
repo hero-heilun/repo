@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.2
+// @version      v0.0.3
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -96,30 +96,28 @@ export default class extends Extension {
     return {};
   }
 
-      async latest() {
-         const res = await this.request("", {
-           headers: {
-             "Miru-Url": "https://dramacool.bg/all-most-popular-drama",
-           },
-         });
-       const bsxList = await this.querySelectorAll(res, "ul.switch-block.list-episode-item > li");
-       const novel = [];
-       for (const element of bsxList) {
-         const html = await element.content;
-         const url = await this.getAttributeText(html, "a", "href");
-         const title = (await this.querySelector(html, "h3"))?.text;
-         const cover = await this.querySelector(html, "img").getAttributeText("data-original");
-           console.log("111111")
-         if (url) {
-           novel.push({
-             title,
-             url: url.replace("/drama-detail/", ""),
-             cover,
-           });
-         }
-       }
-       return novel;
-     }
+   async latest() {
+        const res = await this.request("", {
+          headers: {
+            "Miru-Url": "https://dramacool.bg/all-most-popular-drama",
+          },
+        });
+        const bsxList = await this.querySelectorAll(res, "ul.switch-block.list-episode-item > li");
+        const novel = [];
+        for (const element of bsxList) {
+          const html = await element.content;
+          const url = await this.getAttributeText(html, "a", "href");
+          const title = await this.querySelector(html, "h3").text;
+          const cover = await this.querySelector(html, "img").getAttributeText("data-original");
+          //console.log(title+cover+url)
+          novel.push({
+            title,
+            url: url.replace("https://dramacool.bg/", ""),
+            cover,
+          });
+        }
+        return novel;
+      }
    
      async detail(url) {
        try {
