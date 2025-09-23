@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.2
+// @version      v0.0.4
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -96,90 +96,28 @@ export default class extends Extension {
     return {};
   }
 
-  async latest(page) {
-    try {
-      // Load settings once
-      await this.loadSettings();
-      
-      console.log("Fetching latest dramas from:", this.baseUrl);
-      console.log("Using proxy:", this.useProxy);
-      
-      const res = await this.req(this.baseUrl);
-      console.log("Response received, length:", res.length);
-      
+   async latest() {
+      const res = await this.request("", {
+        headers: {
+          "Miru-Url": "https://dramacool.bg/all-most-popular-drama",
+        },
+      });
       const bsxList = await this.querySelectorAll(res, "ul.switch-block.list-episode-item > li");
-      console.log("Found items:", bsxList.length);
-      
       const novel = [];
-      
       for (const element of bsxList) {
-        try {
-          const html = element.content;
-          
-          const url = await this.getAttributeText(html, "a", "href");
-          let title = null;
-          
-          // Try multiple ways to get title
-          const h3Element = await this.querySelector(html, "h3");
-          if (h3Element && h3Element.text) {
-            title = h3Element.text;
-          } else {
-            title = await this.getAttributeText(html, "a", "title");
-          }
-          
-          // Ensure title is not null or empty
-          if (!title || title.trim() === '') {
-            continue;
-          }
-          
-          const cover = await this.getAttributeText(html, "img", "data-original") || 
-                       await this.getAttributeText(html, "img", "data-src") ||
-                       await this.getAttributeText(html, "img", "src");
-          
-          if (url && title) {
-            // Extract drama ID from different URL formats
-            let dramaId = url;
-            if (url.includes("/drama-detail/")) {
-              dramaId = url.split("/drama-detail/")[1];
-            } else if (url.includes("/video-watch/")) {
-              // Extract drama name from episode URL
-              const match = url.match(/video-watch\/(.+?)-episode-/);
-              if (match) {
-                dramaId = match[1];
-              }
-            }
-            
-            // Remove base URL if present
-            if (dramaId.startsWith("http")) {
-              if (dramaId.includes("/drama-detail/")) {
-                dramaId = dramaId.split("/drama-detail/")[1];
-              } else if (dramaId.includes("/video-watch/")) {
-                const match = dramaId.match(/video-watch\/(.+?)-episode-/);
-                if (match) {
-                  dramaId = match[1];
-                }
-              }
-            }
-            
-            novel.push({
-              title: title.trim(),
-              url: dramaId || "",
-              cover: cover || "",
-            });
-          }
-        } catch (itemError) {
-          console.warn("Error processing item:", itemError.message);
-          continue;
-        }
+        const html = await element.content;
+        const url = await this.getAttributeText(html, "a", "href");
+        const title = await this.querySelector(html, "h3").text;
+        const cover = await this.querySelector(html, "img").getAttributeText("data-original");
+        //console.log(title+cover+url)
+        novel.push({
+          title,
+          url: url.replace("https://dramacool.bg/", ""),
+          cover,
+        });
       }
-      
-      console.log("Successfully processed items:", novel.length);
       return novel;
-    } catch (error) {
-      console.error("Error fetching latest:", error.message);
-      return [];
     }
-  }
 
   async detail(url) {
     try {
