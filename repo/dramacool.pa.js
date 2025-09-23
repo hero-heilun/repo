@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.6
+// @version      v0.0.1
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -97,8 +97,11 @@ export default class extends Extension {
   }
 
       async latest() {
-       await this.loadSettings();
-       const res = await this.req(`${this.baseUrl}/all-most-popular-drama`);
+         const res = await this.request("", {
+           headers: {
+             "Miru-Url": "https://dramacool.bg/all-most-popular-drama",
+           },
+         });
        const bsxList = await this.querySelectorAll(res, "ul.switch-block.list-episode-item > li");
        const novel = [];
        for (const element of bsxList) {
