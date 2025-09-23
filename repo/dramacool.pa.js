@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.6
+// @version      v0.0.3
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -226,11 +226,17 @@ export default class extends Extension {
 
   async search(kw, page) {
     try {
+      // Validate search keyword
+      if (!kw || kw.trim() === '') {
+        console.warn("Search keyword is empty");
+        return [];
+      }
+      
       // Get user settings
       this.useProxy = await this.getSetting("useProxy");
       this.proxyUrl = await this.getSetting("proxyUrl");
       
-      const searchUrl = `${this.baseUrl}/search/keyword/${encodeURIComponent(kw)}`;
+      const searchUrl = `${this.baseUrl}/search/keyword/${encodeURIComponent(kw.trim())}`;
       const res = await this.req(searchUrl);
       
       // Look for search results with multiple possible selectors
@@ -242,18 +248,19 @@ export default class extends Extension {
       const results = [];
       for (const element of resultElements) {
         try {
-          const html = await element.content;
-          const linkElement = await this.querySelector(html, "a");
-          const titleElement = await this.querySelector(html, "h3") || 
-                              await this.querySelector(html, ".title") ||
-                              linkElement;
-          const imgElement = await this.querySelector(html, "img");
+          const html = element.content;
           
-          const url = await linkElement?.getAttributeText("href");
-          const title = await titleElement?.text || await linkElement?.getAttributeText("title");
-          const cover = await imgElement?.getAttributeText("data-original") ||
-                       await imgElement?.getAttributeText("data-src") ||
-                       await imgElement?.getAttributeText("src");
+          const url = await this.getAttributeText(html, "a", "href");
+          const title = await this.querySelector(html, "h3")?.text || 
+                       await this.getAttributeText(html, "a", "title");
+          const cover = await this.getAttributeText(html, "img", "data-original") ||
+                       await this.getAttributeText(html, "img", "data-src") ||
+                       await this.getAttributeText(html, "img", "src");
+          
+          // Validate title
+          if (!title || title.trim() === '') {
+            continue;
+          }
           
           if (url && title) {
             // Extract drama ID from URL
@@ -269,7 +276,7 @@ export default class extends Extension {
             
             results.push({
               title: title.trim(),
-              url: dramaId,
+              url: dramaId || "",
               cover: cover || '',
             });
           }
