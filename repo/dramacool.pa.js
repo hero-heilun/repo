@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.7
+// @version      v0.0.2
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -96,7 +96,7 @@ export default class extends Extension {
     return {};
   }
 
-  async latest() {
+  async latest(page) {
     try {
       // Load settings once
       await this.loadSettings();
