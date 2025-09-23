@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.5
+// @version      v0.0.6
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -33,22 +33,33 @@ export default class extends Extension {
 
   async latest() {
     try {
+      console.log("Fetching latest dramas from:", this.baseUrl);
       const res = await this.request(this.baseUrl);
+      console.log("Response received, length:", res.length);
+      
       const bsxList = await this.querySelectorAll(res, "ul.switch-block.list-episode-item > li");
+      console.log("Found items:", bsxList.length);
+      
       const novel = [];
       
       for (const element of bsxList) {
         try {
-          const html = await element.content;
-          const linkElement = await this.querySelector(html, "a");
-          const titleElement = await this.querySelector(html, "h3") || linkElement;
-          const imgElement = await this.querySelector(html, "img");
+          const html = element.content;
           
-          const url = await linkElement?.getAttributeText("href");
-          const title = await titleElement?.text || await linkElement?.getAttributeText("title");
-          const cover = await imgElement?.getAttributeText("data-original") || 
-                       await imgElement?.getAttributeText("data-src") ||
-                       await imgElement?.getAttributeText("src");
+          const url = await this.getAttributeText(html, "a", "href");
+          let title = null;
+          
+          // Try multiple ways to get title
+          const h3Element = await this.querySelector(html, "h3");
+          if (h3Element && h3Element.text) {
+            title = h3Element.text;
+          } else {
+            title = await this.getAttributeText(html, "a", "title");
+          }
+          
+          const cover = await this.getAttributeText(html, "img", "data-original") || 
+                       await this.getAttributeText(html, "img", "data-src") ||
+                       await this.getAttributeText(html, "img", "src");
           
           if (url && title) {
             // Extract drama ID from different URL formats
@@ -63,6 +74,18 @@ export default class extends Extension {
               }
             }
             
+            // Remove base URL if present
+            if (dramaId.startsWith("http")) {
+              if (dramaId.includes("/drama-detail/")) {
+                dramaId = dramaId.split("/drama-detail/")[1];
+              } else if (dramaId.includes("/video-watch/")) {
+                const match = dramaId.match(/video-watch\/(.+?)-episode-/);
+                if (match) {
+                  dramaId = match[1];
+                }
+              }
+            }
+            
             novel.push({
               title: title.trim(),
               url: dramaId,
@@ -70,14 +93,15 @@ export default class extends Extension {
             });
           }
         } catch (itemError) {
-          console.warn("Error processing item:", itemError);
+          console.warn("Error processing item:", itemError.message);
           continue;
         }
       }
       
+      console.log("Successfully processed items:", novel.length);
       return novel;
     } catch (error) {
-      console.error("Error fetching latest:", error);
+      console.error("Error fetching latest:", error.message);
       return [];
     }
   }
