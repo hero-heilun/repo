@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.4
+// @version      v0.0.5
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -109,7 +109,7 @@ export default class extends Extension {
           const url = await this.getAttributeText(html, "a", "href");
           const title = await this.querySelector(html, "h3").text;
           const cover = await this.querySelector(html, "img").getAttributeText("data-original");
-          //console.log(title+cover+url)
+          console.log(title+"1111"+cover+"1111"+url)
           novel.push({
             title,
             url: url.replace("/drama-detail/", ""),
