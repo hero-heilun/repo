@@ -1,6 +1,6 @@
 // ==MiruExtension==
 // @name         DramaCool
-// @version      v0.0.6
+// @version      v0.0.2
 // @author       OshekharO
 // @lang         en
 // @license      MIT
@@ -106,15 +106,15 @@ export default class extends Extension {
         const novel = [];
         for (const element of bsxList) {
           const html = await element.content;
-          const url = await this.getAttributeText(html, "a", "href");
-          const title = await this.querySelector(html, "h3").text;
-          const cover = await this.querySelector(html, "img").getAttributeText("data-original");
-          console.log(title+"1111"+cover+"1111"+url)
-          novel.push({
-            title,
-            url: url.replace("https://dramacool.com.bz/drama-detail/", ""),
-            cover,
-          });
+           const url = await this.getAttributeText(html, "a", "href");
+           const title = await this.querySelector(html, "h3").text;
+           const cover = await this.querySelector(html, "img").getAttributeText("data-original");
+           console.log(title+"1111"+cover+"1111"+url)
+           novel.push({
+             title,
+             url: url.replace("https://dramacool.com.bz/drama-detail/", ""),
+             cover,
+           });
         }
         return novel;
       }
@@ -150,9 +150,9 @@ export default class extends Extension {
          }
    
          return {
-           title: titleElement?.text || "",
-           cover: await coverElement?.getAttributeText("src") || "",
-           desc: descElement?.text || "",
+           title: String(titleElement?.text || ""),
+           cover: String(await coverElement?.getAttributeText("src") || ""),
+           desc: String(descElement?.text || ""),
            episodes,
          };
        } catch (error) {
